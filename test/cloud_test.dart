@@ -6,7 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cho_gan/cloud_app.dart';
 
+import 'dart:convert';
+
 void main() {
+  List<Map<String, dynamic>> sampleListings = [];
+  setUp(() {
+    sampleListings = [];
+    SharedPreferences.setMockInitialValues({});
+  });
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(
@@ -14,7 +21,9 @@ void main() {
       publishableKey: 'test-public-key',
       httpClient: MockClient(
         (request) async => http.Response(
-          '[]',
+          jsonEncode(
+            request.url.path.endsWith('/listings') ? sampleListings : [],
+          ),
           200,
           headers: {'content-type': 'application/json'},
           request: request,
@@ -78,4 +87,53 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'Desktop filter drafts cancel safely and applied filters affect results',
+    (t) async {
+      t.view.physicalSize = const Size(1280, 900);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      sampleListings = [
+        for (var i = 0; i < 3; i++)
+          {
+            'id': 'item-$i',
+            'owner_id': 'seller',
+            'title': 'Món thử $i',
+            'price': [300000, 100000, 200000][i],
+            'area': 'Cầu Giấy',
+            'category': i == 2 ? 'Điện tử' : 'Nội thất',
+            'status': i == 1 ? 'sold' : 'available',
+            'image_path': '',
+            'created_at': '2026-11-26T01:00:00Z',
+            'profiles': {'name': 'Hàng xóm'},
+          },
+      ];
+      await t.pumpWidget(const ChoGan());
+      await t.pumpAndSettle();
+      expect(find.text('3 món'), findsOneWidget);
+      await t.tap(find.text('Bộ lọc'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Chỉ hiện món đang bán'));
+      await t.tap(find.byTooltip('Đóng bộ lọc'));
+      await t.pumpAndSettle();
+      expect(find.text('3 món'), findsOneWidget);
+      await t.tap(find.text('Bộ lọc'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Chỉ hiện món đang bán'));
+      await t.tap(find.text('Áp dụng'));
+      await t.pumpAndSettle();
+      expect(find.text('2 món'), findsOneWidget);
+      expect(find.text('Món thử 1'), findsNothing);
+      await t.enterText(find.byType(TextField).first, 'Món thử 2');
+      await t.pumpAndSettle();
+      expect(find.text('1 món'), findsOneWidget);
+      await t.tap(find.text('Món thử 2', findRichText: false).first);
+      await t.pumpAndSettle();
+      expect(find.text('Chi tiết món đồ'), findsOneWidget);
+      expect(find.text('Nhắn tin hỏi mua'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    },
+  );
 }
