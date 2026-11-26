@@ -94,6 +94,35 @@ class _CommunitiesPage extends State<CommunitiesPage> {
     }
   }
 
+  Future<void> createApartment() async {
+    if (db.auth.currentUser == null) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+      if (db.auth.currentUser == null || !mounted) return;
+    }
+    final building = TextEditingController();
+    final location = TextEditingController();
+    final values = await showDialog<(String, String)>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Tạo cộng đồng chung cư'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: building, maxLength: 80, decoration: const InputDecoration(labelText: 'Tên tòa nhà / khu chung cư')),
+        TextField(controller: location, maxLength: 160, decoration: const InputDecoration(labelText: 'Phường, quận hoặc địa chỉ')),
+        const SizedBox(height: 8),
+        const Text('Cộng đồng dùng mã mời riêng. Passy chưa xác minh người tham gia có cư trú tại đây.', style: TextStyle(color: muted)),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Hủy')), FilledButton(onPressed: () {
+        if (building.text.trim().length >= 3 && location.text.trim().length >= 3) Navigator.pop(c, (building.text.trim(), location.text.trim()));
+      }, child: const Text('Tạo nhóm'))],
+    ));
+    building.dispose(); location.dispose();
+    if (values == null) return;
+    setState(() => busy = true);
+    try {
+      await db.rpc('create_apartment_community', params: {'building_name': values.$1, 'building_location': values.$2});
+      await load();
+    } catch (e) { if (mounted) notice(context, friendly(e)); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
   @override
   Widget build(BuildContext c) => PageBody(
     maxWidth: 820,
@@ -142,6 +171,11 @@ class _CommunitiesPage extends State<CommunitiesPage> {
             onPressed: busy ? null : () => edit(true),
             child: const Text('Tạo cộng đồng'),
           ),
+          OutlinedButton.icon(
+            onPressed: busy ? null : createApartment,
+            icon: const Icon(Icons.apartment_outlined),
+            label: const Text('Tạo nhóm chung cư'),
+          ),
         ],
       ),
       const SizedBox(height: 24),
@@ -160,7 +194,9 @@ class _CommunitiesPage extends State<CommunitiesPage> {
             contentPadding: const EdgeInsets.all(16),
             leading: Avatar(name: '${g['name']}', size: 48),
             title: Text(g['name']),
-            subtitle: const Text('Nhóm có mã mời · không xác minh cư trú'),
+            subtitle: Text(g['community_type'] == 'apartment'
+                ? '${g['building_location'] ?? ''} · Nhóm riêng bằng mã mời, chưa xác minh cư trú'
+                : 'Nhóm có mã mời · không xác minh cư trú'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
