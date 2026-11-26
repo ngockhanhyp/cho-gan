@@ -55,6 +55,24 @@ const line = Color(0xFFEBECEE);
 const soft = Color(0xFFF6F7F8);
 const brandSoft = Color(0xFFFFF1E8);
 
+/// 3D icons from Microsoft Fluent Emoji (MIT), bundled under assets/icons.
+Widget emoji(String name, double size) => Image.asset(
+  'assets/icons/$name.png',
+  width: size,
+  height: size,
+  filterQuality: FilterQuality.medium,
+);
+
+const categoryIcons = {
+  'Tất cả': 'sparkles',
+  'Nội thất': 'couch',
+  'Điện tử': 'laptop',
+  'Gia dụng': 'teapot',
+  'Sách': 'books',
+  'Thời trang': 'tshirt',
+  'Cho tặng': 'gift',
+};
+
 bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 900;
 
 String timeAgo(dynamic iso) {
@@ -649,15 +667,7 @@ class _Home extends State<Home> {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: brand,
-            borderRadius: BorderRadius.circular(size * 0.3),
-          ),
-          child: Icon(Icons.home_rounded, color: Colors.white, size: size * 0.66),
-        ),
+        Image.asset('assets/brand/passy_mark.png', width: size, height: size),
         const SizedBox(width: 8),
         Text(
           'Passy',
@@ -936,44 +946,44 @@ class _Home extends State<Home> {
     ),
   );
 
-  Widget heroArt() {
-    Widget bubble(IconData icon, Color bg, double s) => Container(
-      width: s,
-      height: s,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(s * 0.28),
-        boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 18, offset: Offset(0, 8)),
-        ],
-      ),
-      child: Icon(icon, color: Colors.white, size: s * 0.5),
-    );
-    return SizedBox(
-      width: 300,
-      height: 230,
-      child: Stack(
-        children: [
-          Positioned(left: 70, top: 30, child: bubble(Icons.chair_alt_rounded, brand, 140)),
-          Positioned(left: 0, top: 0, child: bubble(Icons.menu_book_rounded, const Color(0xFF2E9E6B), 80)),
-          Positioned(right: 0, top: 10, child: bubble(Icons.headphones_rounded, const Color(0xFF3B6FE0), 76)),
-          Positioned(left: 10, bottom: 0, child: bubble(Icons.local_florist_rounded, const Color(0xFFE2A23B), 70)),
-          Positioned(right: 20, bottom: 6, child: bubble(Icons.checkroom_rounded, const Color(0xFF9B5DE5), 64)),
-        ],
-      ),
-    );
-  }
+  Widget heroArt() => SizedBox(
+    width: 340,
+    height: 250,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 45,
+          top: 5,
+          child: Container(
+            width: 240,
+            height: 240,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [Colors.white, Color(0x00FFFFFF)]),
+            ),
+          ),
+        ),
+        Positioned(left: 85, top: 40, child: emoji('couch', 170)),
+        Positioned(left: 0, top: 10, child: emoji('plant', 92)),
+        Positioned(right: 0, top: 0, child: emoji('laptop', 88)),
+        Positioned(left: 20, bottom: 0, child: emoji('books', 78)),
+        Positioned(right: 18, bottom: 4, child: emoji('bicycle', 96)),
+        Positioned(left: 150, top: -14, child: emoji('pin', 56)),
+      ],
+    ),
+  );
 
   Widget services(bool wide) {
-    final items = <(IconData, Color, String, VoidCallback)>[
-      (Icons.shopping_bag_rounded, brand, 'Mua bán đồ cũ', () => browse('Tất cả')),
-      (Icons.volunteer_activism_rounded, const Color(0xFFE5484D), 'Cho tặng', () => browse('Cho tặng')),
-      (Icons.chair_rounded, const Color(0xFF8D6E63), 'Nội thất', () => browse('Nội thất')),
-      (Icons.devices_rounded, const Color(0xFF3B6FE0), 'Điện tử', () => browse('Điện tử')),
-      (Icons.groups_rounded, const Color(0xFF2E9E6B), 'Khu phố', () => go(1)),
-      (Icons.chat_bubble_rounded, const Color(0xFF0EA5E9), 'Trò chuyện', () => go(2)),
-      (Icons.favorite_rounded, const Color(0xFFDB2777), 'Đồ đã lưu', () => go(3)),
-      (Icons.verified_user_rounded, const Color(0xFF6B7280), 'Giao dịch an toàn', safetyTips),
+    final items = <(String, String, VoidCallback)>[
+      ('shop', 'Mua bán đồ cũ', () => browse('Tất cả')),
+      ('gift', 'Cho tặng', () => browse('Cho tặng')),
+      ('couch', 'Nội thất', () => browse('Nội thất')),
+      ('laptop', 'Điện tử', () => browse('Điện tử')),
+      ('houses', 'Khu phố', () => go(1)),
+      ('chat', 'Trò chuyện', () => go(2)),
+      ('heart', 'Đồ đã lưu', () => go(3)),
+      ('shield', 'Giao dịch an toàn', safetyTips),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -986,64 +996,48 @@ class _Home extends State<Home> {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 4,
-          mainAxisSpacing: wide ? 12 : 4,
-          crossAxisSpacing: wide ? 12 : 4,
-          childAspectRatio: wide ? 3.4 : 0.9,
+          crossAxisCount: wide ? 8 : 4,
+          mainAxisSpacing: wide ? 12 : 8,
+          crossAxisSpacing: wide ? 12 : 8,
+          childAspectRatio: wide ? 0.92 : 0.78,
           children: items.map((e) {
-            final (icon, color, label, onTap) = e;
-            final badge = Container(
-              width: wide ? 40 : 48,
-              height: wide ? 40 : 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: wide ? 22 : 26),
-            );
-            return InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: onTap,
-              child: wide
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+            final (icon, label, onTap) = e;
+            return Material(
+              color: wide ? soft : Colors.transparent,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: wide ? 64 : 58,
+                      height: wide ? 64 : 58,
+                      padding: EdgeInsets.all(wide ? 6 : 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7F7F8),
-                        borderRadius: BorderRadius.circular(16),
+                        color: wide ? Colors.transparent : soft,
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Row(
-                        children: [
-                          badge,
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              label,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: Colors.black26),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        badge,
-                        const SizedBox(height: 6),
-                        Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                      child: emoji(icon, wide ? 52 : 42),
                     ),
+                    SizedBox(height: wide ? 10 : 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: wide ? 14 : 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }).toList(),
         ),
@@ -1083,6 +1077,7 @@ class _Home extends State<Home> {
                 (v) => Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
+                    avatar: emoji(categoryIcons[v] ?? 'sparkles', 20),
                     label: Text(v),
                     selected: category == v,
                     showCheckmark: false,
@@ -1321,6 +1316,7 @@ class _Home extends State<Home> {
                 .where((v) => v != 'Tất cả')
                 .map(
                   (v) => ActionChip(
+                    avatar: emoji(categoryIcons[v] ?? 'sparkles', 20),
                     label: Text(v),
                     backgroundColor: Colors.white,
                     side: const BorderSide(color: Color(0xFFE5E5E5)),
@@ -1810,13 +1806,13 @@ class _Login extends State<Login> {
         end: Alignment.bottomRight,
       ),
     ),
-    child: const Column(
+    child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.home_rounded, color: Colors.white, size: 56),
-        SizedBox(height: 24),
-        Text(
+        emoji('shop', 72),
+        const SizedBox(height: 24),
+        const Text(
           'Đồ cũ của bạn,\nniềm vui của hàng xóm.',
           style: TextStyle(
             color: Colors.white,
@@ -1825,15 +1821,15 @@ class _Login extends State<Login> {
             height: 1.25,
           ),
         ),
-        SizedBox(height: 16),
-        Text(
+        const SizedBox(height: 16),
+        const Text(
           'Đăng tin miễn phí, nhắn tin trực tiếp và hẹn gặp ở chỗ thuận tiện quanh nhà.',
           style: TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
         ),
-        SizedBox(height: 32),
-        _Perk('Miễn phí cho người mua và người bán'),
-        _Perk('Chỉ hiện khu vực, không lộ địa chỉ nhà'),
-        _Perk('Báo cáo và chặn tài khoản đáng ngờ'),
+        const SizedBox(height: 32),
+        const _Perk('Miễn phí cho người mua và người bán'),
+        const _Perk('Chỉ hiện khu vực, không lộ địa chỉ nhà'),
+        const _Perk('Báo cáo và chặn tài khoản đáng ngờ'),
       ],
     ),
   );
