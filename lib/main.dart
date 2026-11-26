@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'cloud_app.dart';
+import 'social_auth.dart';
+import 'supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final callbackMessage = socialCallbackMessage(Uri.base);
   await Supabase.initialize(
-    url: 'https://yfqvfkmbvaaujheiivuz.supabase.co',
-    publishableKey: 'sb_publishable_VtzXKFOkFZzwNQxWLjG57w_YMBwDNpC',
+    url: passySupabaseUrl,
+    publishableKey: passySupabasePublishableKey,
   );
-  runApp(const ChoGan());
+  runApp(ChoGan(authMessage: callbackMessage));
 }

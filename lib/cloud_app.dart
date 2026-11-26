@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'location_picker.dart';
+import 'social_auth.dart';
 
 part 'trust.dart';
 part 'community.dart';
@@ -358,7 +359,8 @@ class StatusBadge extends StatelessWidget {
 }
 
 class ChoGan extends StatelessWidget {
-  const ChoGan({super.key});
+  final String? authMessage;
+  const ChoGan({super.key, this.authMessage});
   @override
   Widget build(BuildContext c) => MaterialApp(
     title: 'Passy',
@@ -382,12 +384,13 @@ class ChoGan extends StatelessWidget {
       }
       return null;
     },
-    home: const Home(),
+    home: Home(authMessage: authMessage),
   );
 }
 
 class Home extends StatefulWidget {
-  const Home({super.key});
+  final String? authMessage;
+  const Home({super.key, this.authMessage});
   @override
   State<Home> createState() => _Home();
 }
@@ -414,6 +417,11 @@ class _Home extends State<Home> {
   void initState() {
     super.initState();
     refresh();
+    if (widget.authMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) notice(context, widget.authMessage!);
+      });
+    }
     loadPreferredPassyArea().then((saved) {
       if (mounted && !areaPickerOpened && saved != null) {
         setState(() => area = saved);
@@ -429,6 +437,8 @@ class _Home extends State<Home> {
           );
         });
       }
+    }, onError: (Object error) {
+      if (mounted) notice(context, socialAuthErrorMessage(error));
     });
   }
 
@@ -1694,7 +1704,8 @@ class ListingImage extends StatelessWidget {
 }
 
 class Login extends StatefulWidget {
-  const Login({super.key});
+  final Future<bool> Function(OAuthProvider provider)? socialSignIn;
+  const Login({super.key, this.socialSignIn});
   @override
   State<Login> createState() => _Login();
 }
@@ -1705,9 +1716,54 @@ class _Login extends State<Login> {
       name = TextEditingController();
   final form = GlobalKey<FormState>();
   bool signup = false, busy = false;
+  bool oauthPending = false;
+  StreamSubscription<AuthState>? socialAuthSubscription;
   String? message;
   @override
+  void initState() {
+    super.initState();
+    socialAuthSubscription = db.auth.onAuthStateChange.listen((state) {
+      if (oauthPending && state.event == AuthChangeEvent.signedIn && state.session != null) {
+        setState(() => oauthPending = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && ModalRoute.of(context)?.isCurrent == true) Navigator.pop(context);
+        });
+      }
+    }, onError: (Object error) {
+      if (mounted && oauthPending) {
+        setState(() { oauthPending = false; busy = false; message = socialAuthErrorMessage(error); });
+      }
+    });
+  }
+
+  Future<void> socialSignIn(OAuthProvider provider) async {
+    if (busy || oauthPending) return;
+    setState(() { busy = true; oauthPending = true; message = null; });
+    try {
+      final launched = await (widget.socialSignIn ?? startPassySocialSignIn)(provider);
+      if (!mounted) return;
+      if (!launched) {
+        setState(() { oauthPending = false; message = 'Không mở được trang đăng nhập. Vui lòng thử lại.'; });
+      }
+    } catch (error) {
+      if (mounted) setState(() { oauthPending = false; message = socialAuthErrorMessage(error); });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Widget socialButton(OAuthProvider provider) => OutlinedButton.icon(
+    key: ValueKey('sign-in-${provider.name}'),
+    onPressed: busy || oauthPending ? null : () => socialSignIn(provider),
+    icon: provider == OAuthProvider.google
+        ? SvgPicture.asset('assets/brand/google_g.svg', width: 20, height: 20)
+        : const Icon(Icons.facebook, color: Color(0xFF0866FF), size: 24),
+    label: Text('Tiếp tục với ${socialProviderName(provider)}'),
+  );
+
+  @override
   void dispose() {
+    socialAuthSubscription?.cancel();
     email.dispose();
     password.dispose();
     name.dispose();
@@ -1715,6 +1771,7 @@ class _Login extends State<Login> {
   }
 
   Future<void> submit() async {
+    if (busy || oauthPending) return;
     if (!form.currentState!.validate()) return;
     setState(() => busy = true);
     try {
@@ -1842,7 +1899,25 @@ class _Login extends State<Login> {
                     : 'Đăng nhập để mua bán cùng người gần bạn.',
                 style: const TextStyle(color: muted, fontSize: 15),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
+              socialButton(OAuthProvider.google),
+              const SizedBox(height: 12),
+              socialButton(OAuthProvider.facebook),
+              if (oauthPending) ...[
+                const SizedBox(height: 12),
+                const Text('Hoàn tất đăng nhập trong trình duyệt. Nếu đã đóng trang đó, bạn có thể thử lại.',
+                  style: TextStyle(color: muted, height: 1.5)),
+                TextButton(
+                  onPressed: busy ? null : () => setState(() => oauthPending = false),
+                  child: const Text('Quay lại chọn cách đăng nhập'),
+                ),
+              ],
+              const SizedBox(height: 24),
+              const Row(children: [Expanded(child: Divider()), Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text('hoặc dùng email', style: TextStyle(color: muted, fontSize: 13)),
+              ), Expanded(child: Divider())]),
+              const SizedBox(height: 24),
               if (signup) ...[
                 TextFormField(
                   controller: name,
@@ -1873,7 +1948,7 @@ class _Login extends State<Login> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: busy ? null : sendPasswordReset,
+                    onPressed: busy || oauthPending ? null : sendPasswordReset,
                     child: const Text('Quên mật khẩu?'),
                   ),
                 ),
@@ -1887,7 +1962,7 @@ class _Login extends State<Login> {
                 ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: busy ? null : submit,
+                onPressed: busy || oauthPending ? null : submit,
                 child: Text(
                   busy
                       ? 'Đang xử lý…'
@@ -1897,7 +1972,7 @@ class _Login extends State<Login> {
                 ),
               ),
               TextButton(
-                onPressed: busy
+                onPressed: busy || oauthPending
                     ? null
                     : () => setState(() {
                         signup = !signup;
