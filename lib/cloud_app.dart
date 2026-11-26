@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 part 'trust.dart';
 part 'community.dart';
@@ -89,7 +90,7 @@ class ChoGan extends StatelessWidget {
       color: const Color(0xFFF5F5F5),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
+          constraints: const BoxConstraints(maxWidth: 1440),
           child: child!,
         ),
       ),
@@ -233,136 +234,290 @@ class _Home extends State<Home> {
     }
   }
 
-  @override
-  Widget build(BuildContext c) {
-    return Scaffold(
-      appBar: AppBar(
-        title: TextButton.icon(
-          onPressed: () => showModalBottomSheet(
-            context: c,
-            builder: (s) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children:
-                    [
-                          'Cầu Giấy',
-                          'Nam Từ Liêm',
-                          'Ba Đình',
-                          'Thanh Xuân',
-                          'Tất cả Hà Nội',
-                        ]
-                        .map(
-                          (a) => ListTile(
-                            title: Text(a),
-                            trailing: a == area
-                                ? const Icon(Icons.check, color: brand)
-                                : null,
-                            onTap: () {
-                              setState(() => area = a);
-                              Navigator.pop(s);
-                            },
-                          ),
-                        )
-                        .toList(),
-              ),
+  static const areas = [
+    'Cầu Giấy',
+    'Nam Từ Liêm',
+    'Ba Đình',
+    'Thanh Xuân',
+    'Tất cả Hà Nội',
+  ];
+
+  Future<void> pickArea() => showModalBottomSheet(
+    context: context,
+    builder: (s) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Text(
+              'Chọn khu vực của bạn',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
           ),
-          icon: const Icon(Icons.location_on_outlined, color: brand),
-          label: Text(
-            '$area ▾',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: Colors.black,
+          ...areas.map(
+            (a) => ListTile(
+              title: Text(a),
+              trailing: a == area ? const Icon(Icons.check, color: brand) : null,
+              onTap: () {
+                setState(() => area = a);
+                Navigator.pop(s);
+              },
             ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Tải lại',
-            onPressed: refresh,
-            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 960),
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(error!),
-                      TextButton(
-                        onPressed: refresh,
-                        child: const Text('Thử lại'),
-                      ),
-                    ],
-                  ),
-                )
-              : page == 0
-              ? feed()
-              : page == 1
-              ? const CommunitiesPage()
-              : page == 2
-              ? inbox()
-              : profile(),
-        ),
+    ),
+  );
+
+  Future<void> compose() async {
+    if (!await login() || !mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            Compose(area: area == 'Tất cả Hà Nội' ? 'Cầu Giấy' : area),
       ),
-      floatingActionButton: page == 0
+    );
+    refresh();
+  }
+
+  void go(int i) {
+    setState(() => page = i);
+    refresh();
+  }
+
+  void browse(String cat) => setState(() {
+    page = 0;
+    category = cat;
+  });
+
+  void safetyTips() => showDialog(
+    context: context,
+    builder: (d) => AlertDialog(
+      title: const Text('Giao dịch an toàn'),
+      content: const Text(
+        '• Hẹn gặp ở nơi công cộng, đông người.\n'
+        '• Kiểm tra kỹ món đồ trước khi trả tiền.\n'
+        '• Không chuyển khoản đặt cọc cho người lạ.\n'
+        '• Không bấm link thanh toán lạ gửi qua tin nhắn.\n'
+        '• Báo cáo ngay tin đăng hoặc tài khoản đáng ngờ.',
+        style: TextStyle(height: 1.7),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d), child: const Text('Đã hiểu')),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext c) {
+    final wide = MediaQuery.sizeOf(c).width >= 900;
+    final Widget content = loading
+        ? const Center(child: CircularProgressIndicator())
+        : error != null
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(error!),
+                TextButton(onPressed: refresh, child: const Text('Thử lại')),
+              ],
+            ),
+          )
+        : page == 0
+        ? feed(wide)
+        : Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: page == 1
+                  ? const CommunitiesPage()
+                  : page == 2
+                  ? inbox()
+                  : profile(),
+            ),
+          );
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(wide ? 76 : 60),
+        child: header(wide),
+      ),
+      body: content,
+      floatingActionButton: !wide && page == 0
           ? FloatingActionButton.extended(
               backgroundColor: brand,
               foregroundColor: Colors.white,
-              onPressed: () async {
-                if (!await login() || !mounted) return;
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Compose(
-                      area: area == 'Tất cả Hà Nội' ? 'Cầu Giấy' : area,
-                    ),
-                  ),
-                );
-                refresh();
-              },
+              onPressed: compose,
               icon: const Icon(Icons.add),
               label: const Text('Đăng tin'),
             )
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: page,
-        onDestinationSelected: (i) {
-          setState(() => page = i);
-          refresh();
-        },
-        indicatorColor: const Color(0xFFFFE5D5),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Gần bạn',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            label: 'Khu phố',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Trò chuyện',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'Của tôi',
-          ),
-        ],
-      ),
+      bottomNavigationBar: wide
+          ? null
+          : NavigationBar(
+              selectedIndex: page,
+              onDestinationSelected: go,
+              backgroundColor: Colors.white,
+              indicatorColor: const Color(0xFFFFE5D5),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Gần bạn',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.people_outline),
+                  selectedIcon: Icon(Icons.people),
+                  label: 'Khu phố',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  selectedIcon: Icon(Icons.chat_bubble),
+                  label: 'Trò chuyện',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Của tôi',
+                ),
+              ],
+            ),
     );
   }
 
-  Widget feed() {
+  Widget logo({double size = 34}) => InkWell(
+    borderRadius: BorderRadius.circular(10),
+    onTap: () => browse('Tất cả'),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: brand,
+            borderRadius: BorderRadius.circular(size * 0.3),
+          ),
+          child: Icon(Icons.home_rounded, color: Colors.white, size: size * 0.66),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Chợ Gần',
+          style: TextStyle(
+            fontSize: size * 0.62,
+            fontWeight: FontWeight.w900,
+            color: brand,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget searchBox({bool compact = false}) => TextField(
+    onChanged: (v) => setState(() {
+      search = v;
+      page = 0;
+    }),
+    decoration: InputDecoration(
+      isDense: compact,
+      prefixIcon: const Icon(Icons.search),
+      hintText: 'Tìm món đồ ở $area',
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide.none,
+      ),
+    ),
+  );
+
+  Widget areaButton() => TextButton.icon(
+    onPressed: pickArea,
+    icon: const Icon(Icons.location_on, color: brand, size: 20),
+    label: Text(
+      '$area ▾',
+      style: const TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 15,
+        color: Colors.black87,
+      ),
+    ),
+  );
+
+  Widget navLink(String label, int i) => TextButton(
+    onPressed: () => go(i),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: page == i ? FontWeight.w800 : FontWeight.w500,
+        color: page == i ? brand : Colors.black87,
+      ),
+    ),
+  );
+
+  Widget header(bool wide) => Container(
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+    ),
+    child: SafeArea(
+      bottom: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 12),
+            child: Row(
+              children: wide
+                  ? [
+                      logo(),
+                      const SizedBox(width: 28),
+                      Expanded(child: searchBox(compact: true)),
+                      const SizedBox(width: 12),
+                      areaButton(),
+                      const SizedBox(width: 8),
+                      navLink('Khu phố', 1),
+                      navLink('Trò chuyện', 2),
+                      navLink(
+                        db.auth.currentUser == null ? 'Đăng nhập' : 'Của tôi',
+                        3,
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: brand,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                        ),
+                        onPressed: compose,
+                        icon: const Icon(Icons.add, size: 20),
+                        label: const Text(
+                          'Đăng tin',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ]
+                  : [
+                      logo(size: 30),
+                      const Spacer(),
+                      areaButton(),
+                      IconButton(
+                        tooltip: 'Tải lại',
+                        onPressed: refresh,
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget feed(bool wide) {
     final shown = listings
         .where(
           (x) =>
@@ -374,102 +529,643 @@ class _Home extends State<Home> {
               x['status'] != 'hidden',
         )
         .toList();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: TextField(
-            onChanged: (v) => setState(() => search = v),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Tìm món đồ bạn cần ở gần đây',
+    final pad = wide ? 24.0 : 16.0;
+    return RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(pad, wide ? 28 : 12, pad, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!wide) ...[searchBox(), const SizedBox(height: 16)],
+                    if (search.isEmpty) ...[
+                      hero(wide),
+                      SizedBox(height: wide ? 36 : 24),
+                      services(wide),
+                      SizedBox(height: wide ? 44 : 28),
+                    ],
+                    if (wide)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: listingSection(shown, wide)),
+                          const SizedBox(width: 32),
+                          SizedBox(width: 300, child: sidebar()),
+                        ],
+                      )
+                    else ...[
+                      listingSection(shown, wide),
+                      const SizedBox(height: 32),
+                      sidebar(),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: categories
-                .map(
-                  (v) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(v),
-                      selected: category == v,
-                      onSelected: (_) => setState(() => category = v),
+          footer(wide),
+          if (!wide) const SizedBox(height: 70),
+        ],
+      ),
+    );
+  }
+
+  Widget hero(bool wide) => Container(
+    width: double.infinity,
+    padding: EdgeInsets.all(wide ? 40 : 22),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(24),
+      gradient: const LinearGradient(
+        colors: [Color(0xFFFFF3EA), Color(0xFFFFE3D1)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  '📍 Chợ đồ cũ của hàng xóm Hà Nội',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: brand,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Mua bán đồ cũ\nvới người ngay gần bạn',
+                style: TextStyle(
+                  fontSize: wide ? 40 : 26,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Đăng tin miễn phí, nhắn tin trực tiếp, hẹn gặp ở chỗ thuận tiện. '
+                'Món đồ bạn không dùng nữa có thể là thứ hàng xóm đang cần.',
+                style: TextStyle(
+                  fontSize: wide ? 17 : 15,
+                  height: 1.6,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: brand,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 16,
+                      ),
                     ),
+                    onPressed: compose,
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 20),
+                    label: const Text(
+                      'Đăng tin miễn phí',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      side: BorderSide.none,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 16,
+                      ),
+                    ),
+                    onPressed: pickArea,
+                    icon: const Icon(Icons.location_on_outlined, size: 20),
+                    label: Text('Đổi khu vực · $area'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (wide) ...[const SizedBox(width: 32), heroArt()],
+      ],
+    ),
+  );
+
+  Widget heroArt() {
+    Widget bubble(IconData icon, Color bg, double s) => Container(
+      width: s,
+      height: s,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(s * 0.28),
+        boxShadow: const [
+          BoxShadow(color: Color(0x1A000000), blurRadius: 18, offset: Offset(0, 8)),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: s * 0.5),
+    );
+    return SizedBox(
+      width: 300,
+      height: 230,
+      child: Stack(
+        children: [
+          Positioned(left: 70, top: 30, child: bubble(Icons.chair_alt_rounded, brand, 140)),
+          Positioned(left: 0, top: 0, child: bubble(Icons.menu_book_rounded, const Color(0xFF2E9E6B), 80)),
+          Positioned(right: 0, top: 10, child: bubble(Icons.headphones_rounded, const Color(0xFF3B6FE0), 76)),
+          Positioned(left: 10, bottom: 0, child: bubble(Icons.local_florist_rounded, const Color(0xFFE2A23B), 70)),
+          Positioned(right: 20, bottom: 6, child: bubble(Icons.checkroom_rounded, const Color(0xFF9B5DE5), 64)),
+        ],
+      ),
+    );
+  }
+
+  Widget services(bool wide) {
+    final items = <(IconData, Color, String, VoidCallback)>[
+      (Icons.shopping_bag_rounded, brand, 'Mua bán đồ cũ', () => browse('Tất cả')),
+      (Icons.volunteer_activism_rounded, const Color(0xFFE5484D), 'Cho tặng', () => browse('Cho tặng')),
+      (Icons.chair_rounded, const Color(0xFF8D6E63), 'Nội thất', () => browse('Nội thất')),
+      (Icons.devices_rounded, const Color(0xFF3B6FE0), 'Điện tử', () => browse('Điện tử')),
+      (Icons.groups_rounded, const Color(0xFF2E9E6B), 'Khu phố', () => go(1)),
+      (Icons.chat_bubble_rounded, const Color(0xFF0EA5E9), 'Trò chuyện', () => go(2)),
+      (Icons.favorite_rounded, const Color(0xFFDB2777), 'Đồ đã lưu', () => go(3)),
+      (Icons.verified_user_rounded, const Color(0xFF6B7280), 'Giao dịch an toàn', safetyTips),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Khám phá Chợ Gần',
+          style: TextStyle(fontSize: wide ? 22 : 19, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 14),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 4,
+          mainAxisSpacing: wide ? 12 : 4,
+          crossAxisSpacing: wide ? 12 : 4,
+          childAspectRatio: wide ? 3.4 : 0.9,
+          children: items.map((e) {
+            final (icon, color, label, onTap) = e;
+            final badge = Container(
+              width: wide ? 40 : 48,
+              height: wide ? 40 : 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: wide ? 22 : 26),
+            );
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTap,
+              child: wide
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F8),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          badge,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.black26),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        badge,
+                        const SizedBox(height: 6),
+                        Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget listingSection(List<Map<String, dynamic>> shown, bool wide) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Text(
+              search.isNotEmpty
+                  ? 'Kết quả cho “$search”'
+                  : area == 'Tất cả Hà Nội'
+                  ? 'Đồ cũ mới đăng ở Hà Nội'
+                  : 'Đồ cũ mới đăng ở $area',
+              style: TextStyle(fontSize: wide ? 22 : 19, fontWeight: FontWeight.w800),
+            ),
+          ),
+          Text(
+            '${shown.length} món',
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: categories
+              .map(
+                (v) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(v),
+                    selected: category == v,
+                    showCheckmark: false,
+                    selectedColor: const Color(0xFF222222),
+                    labelStyle: TextStyle(
+                      color: category == v ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    shape: const StadiumBorder(
+                      side: BorderSide(color: Color(0xFFE5E5E5)),
+                    ),
+                    backgroundColor: Colors.white,
+                    onSelected: (_) => setState(() => category = v),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+      const SizedBox(height: 20),
+      if (shown.isEmpty)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F7F8),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.storefront_outlined, size: 56, color: brand),
+              const SizedBox(height: 14),
+              const Text(
+                'Chưa có món nào ở đây',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Hãy là người đầu tiên đăng món đồ bạn không còn dùng.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: compose, child: const Text('Đăng tin ngay')),
+            ],
+          ),
+        )
+      else
+        LayoutBuilder(
+          builder: (_, box) {
+            final cols = (box.maxWidth / 210).floor().clamp(2, 4);
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: shown.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: wide ? 20 : 12,
+                mainAxisSpacing: wide ? 28 : 20,
+                mainAxisExtent: box.maxWidth / cols + 104,
+              ),
+              itemBuilder: (_, i) => card(shown[i]),
+            );
+          },
+        ),
+    ],
+  );
+
+  String ago(dynamic iso) {
+    final t = DateTime.tryParse('${iso ?? ''}');
+    if (t == null) return '';
+    final d = DateTime.now().difference(t.toLocal());
+    if (d.inMinutes < 1) return 'vừa xong';
+    if (d.inMinutes < 60) return '${d.inMinutes} phút trước';
+    if (d.inHours < 24) return '${d.inHours} giờ trước';
+    if (d.inDays < 30) return '${d.inDays} ngày trước';
+    return '${t.day}/${t.month}/${t.year}';
+  }
+
+  Widget card(Map<String, dynamic> x) {
+    final saved = favorites.contains(x['id']);
+    final status = x['status'] == 'sold'
+        ? 'Đã bán'
+        : x['status'] == 'reserved'
+        ? 'Đang hẹn'
+        : null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => Detail(item: x)),
+        );
+        refresh();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Opacity(
+                  opacity: status == 'Đã bán' ? 0.55 : 1,
+                  child: ListingImage(path: x['image_path'] ?? '', size: double.infinity),
+                ),
+                if (status != null)
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status == 'Đã bán' ? Colors.black87 : const Color(0xFF2E9E6B),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        status,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 1,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => favorite(x),
+                      child: Padding(
+                        padding: const EdgeInsets.all(7),
+                        child: Icon(
+                          saved ? Icons.favorite : Icons.favorite_border,
+                          size: 18,
+                          color: saved ? brand : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            x['title'] ?? '',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, height: 1.35),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            money(x['price']),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            [x['area'], ago(x['created_at'])].where((s) => '${s ?? ''}'.isNotEmpty).join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget sideCard(String title, Widget child) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF7F7F8),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        child,
+      ],
+    ),
+  );
+
+  Widget sidebar() {
+    final live = listings.where((x) => x['status'] == 'available').toList();
+    return Column(
+      children: [
+        sideCard(
+          'Khu vực sôi động',
+          Column(
+            children: areas.where((a) => a != 'Tất cả Hà Nội').map((a) {
+              final n = live.where((x) => x['area'] == a).length;
+              return InkWell(
+                onTap: () => setState(() => area = a),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 18,
+                        color: a == area ? brand : Colors.black38,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          a,
+                          style: TextStyle(
+                            fontWeight: a == area ? FontWeight.w800 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Text('$n món', style: const TextStyle(color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        sideCard(
+          'Danh mục',
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories
+                .where((v) => v != 'Tất cả')
+                .map(
+                  (v) => ActionChip(
+                    label: Text(v),
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    shape: const StadiumBorder(),
+                    onPressed: () => browse(v),
                   ),
                 )
                 .toList(),
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: refresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1E8),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        sideCard(
+          'Giao dịch an toàn',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final tip in const [
+                'Gặp ở nơi công cộng, đông người',
+                'Kiểm tra hàng trước khi trả tiền',
+                'Không chuyển khoản đặt cọc',
+                'Báo cáo tin đáng ngờ',
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
                     children: [
-                      Text(
-                        'Đồ cũ, niềm vui mới.',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        'Gặp người gần bạn. Trao món đồ còn giá trị.\nMua bán trực tiếp, hoàn toàn miễn phí.',
-                      ),
+                      const Icon(Icons.check_circle, size: 18, color: Color(0xFF2E9E6B)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(tip)),
                     ],
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    'Khám phá quanh bạn',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                if (shown.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(30),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget footer(bool wide) {
+    Widget link(String text, VoidCallback onTap) => InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Text(text, style: const TextStyle(color: Colors.black54)),
+      ),
+    );
+    Widget col(String title, List<Widget> items) => SizedBox(
+      width: 200,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          ...items,
+        ],
+      ),
+    );
+    void open(String path) => launchUrl(Uri.base.resolve(path), webOnlyWindowName: '_self');
+    return Container(
+      color: const Color(0xFFF7F7F8),
+      padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 16, vertical: 40),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 40,
+                runSpacing: 28,
+                children: [
+                  SizedBox(
+                    width: 280,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.storefront_outlined, size: 64, color: brand),
-                        SizedBox(height: 16),
-                        Text(
-                          'Khu phố đang chờ món đồ đầu tiên!',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Đăng món bạn không còn dùng để người gần bạn tìm thấy.',
-                          textAlign: TextAlign.center,
+                        logo(size: 28),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Chợ đồ cũ của hàng xóm. Mua bán miễn phí, gặp nhau trực tiếp.',
+                          style: TextStyle(color: Colors.black54, height: 1.6),
                         ),
                       ],
                     ),
                   ),
-                ...shown.map(tile),
-              ],
-            ),
+                  col('Khám phá', [
+                    link('Mua bán đồ cũ', () => browse('Tất cả')),
+                    link('Đồ cho tặng', () => browse('Cho tặng')),
+                    link('Khu phố', () => go(1)),
+                    link('Trò chuyện', () => go(2)),
+                  ]),
+                  col('Hỗ trợ', [
+                    link('Giao dịch an toàn', safetyTips),
+                    link('Điều khoản sử dụng', () => open('/terms.html')),
+                    link('Chính sách quyền riêng tư', () => open('/privacy.html')),
+                  ]),
+                ],
+              ),
+              const SizedBox(height: 28),
+              const Divider(color: Color(0xFFE5E5E5)),
+              const SizedBox(height: 12),
+              const Text(
+                '© 2026 Chợ Gần · Dự án cộng đồng thử nghiệm tại Hà Nội',
+                style: TextStyle(color: Colors.black45, fontSize: 13),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
