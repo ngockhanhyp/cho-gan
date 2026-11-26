@@ -1,9 +1,12 @@
 # Chợ Gần V1 — bản thử nội bộ
 
 ## Mở và cài
+- Web đang chạy: https://ngockhanhyp.github.io/cho-gan/
+- Tên miền dự kiến: https://passy.id.vn (đang chờ cấu hình DNS CNAME).
 - Web trên máy phát triển: http://127.0.0.1:8788
 - APK: outputs/ChoGan-v1-android-arm64.apk (sau khi build).
-- Website chưa có tên miền công khai. Link localhost chỉ mở trên máy này.
+- GitHub Actions tự build và deploy web khi cập nhật code liên quan.
+- Trang GitHub Pages hiện công khai; đăng ký/email xác nhận cần URL redirect và SMTP Supabase được cấu hình phù hợp.
 - Android kết nối cùng Supabase với web, cần Internet.
 
 ## Có trong V1
@@ -42,15 +45,17 @@ Quản trị dùng bảng admin_emails riêng với RLS. Email cấu hình phả
 - Kiểm thử cộng đồng: người ngoài không xem/đăng, mã mời đúng cho phép tham gia; tài khoản thường không thể gọi quản trị.
 - Dữ liệu kiểm thử DB đã rollback.
 - Web đã được mở trên Chrome và kiểm tra trang feed/đăng nhập. Chưa xác nhận end-to-end bằng hai thiết bị thật.
+- Commit `4e83e94` đã được build và deploy qua GitHub Actions. Trang Pages và `flutter_bootstrap.js` đều trả HTTP 200; chưa kiểm tra đăng nhập/email trên domain tùy chỉnh.
 
 ## Giới hạn trước khi mời đông người
 - Chưa GPS, chưa xác thực cư trú/doanh nghiệp, không có huy hiệu/điểm tin cậy giả.
 - Chưa push khi đóng app, chat tải 100 tin gần nhất, feed 200 tin gần nhất; cần phân trang cho quy mô lớn.
 - Tin hiện một ảnh; chưa đổi ảnh trên tin đã đăng. Cộng đồng chưa bình luận, xóa bài/rời nhóm/đổi mã mời.
-- Chưa có quy trình quên mật khẩu, xóa tài khoản tự phục vụ, rate-limit nghiệp vụ và chống spam nâng cao.
+- Luồng quên/reset mật khẩu web đã được thêm; cần xác nhận redirect URL và email thật. Chưa có xóa tài khoản tự phục vụ, rate-limit nghiệp vụ và chống spam nâng cao.
 - Email xác nhận dùng cấu hình Supabase hiện tại. Cần SMTP riêng và URL sản phẩm trước khi mở đăng ký đại trà.
 - Chưa phát hành Google Play/App Store; APK ký khóa thử, chỉ dùng pilot. iOS chưa build.
-- Chưa có hosting công khai, analytics vận hành đầy đủ, chính sách pháp lý hoàn chỉnh hay kiểm định an toàn sản phẩm thương mại.
+- Chưa có analytics/monitoring vận hành đầy đủ, chính sách pháp lý hoàn chỉnh hay kiểm định an toàn sản phẩm thương mại.
+- `passy.id.vn` chưa nối DNS; cần CNAME trỏ tới `ngockhanhyp.github.io`, rồi cập nhật GitHub Pages và Supabase Auth URLs.
 
 ## Benchmark 당근
 Bám theo cốt lõi địa phương, giao dịch trực tiếp miễn phí, tin dạng danh sách ảnh/giá, chat gắn món, lịch hẹn và phản hồi. Sử dụng tên/biểu tượng/mã nguồn riêng. Chưa đạt tương đương toàn bộ tính năng, chất lượng và quy mô của 당근.
