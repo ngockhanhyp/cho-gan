@@ -1,0 +1,4 @@
+const http=require('http'),fs=require('fs'),path=require('path');
+const root=path.resolve(__dirname,'../build/web');
+http.createServer((req,res)=>{let name;try{name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{res.writeHead(400);res.end();return;}let f=path.resolve(root,'.'+name);if(!f.startsWith(root+path.sep)&&f!==root){res.writeHead(403);res.end();return;}if(!path.extname(f))f=path.join(root,'index.html');fs.readFile(f,(err,data)=>{if(err){res.writeHead(404);res.end('Not found');return;}const types={'.html':'text/html; charset=utf-8','.js':'application/javascript','.json':'application/json','.wasm':'application/wasm','.png':'image/png','.woff2':'font/woff2','.ttf':'font/ttf'};res.writeHead(200,{'Content-Type':types[path.extname(f)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(data);});}).listen(8788,'127.0.0.1',()=>console.log('Cho Gan: http://127.0.0.1:8788'));
+

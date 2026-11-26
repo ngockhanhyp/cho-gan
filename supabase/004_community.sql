@@ -1,0 +1,17 @@
+begin;
+create table public.communities(id uuid primary key default gen_random_uuid(),name text not null check(length(name) between 3 and 80),owner_id uuid not null references public.profiles(id),invite_code text not null unique default replace(gen_random_uuid()::text,'-',''),created_at timestamptz default now());
+create table public.community_members(community_id uuid references public.communities(id),user_id uuid references public.profiles(id),joined_at timestamptz default now(),primary key(community_id,user_id));
+create table public.community_posts(id uuid primary key default gen_random_uuid(),community_id uuid not null references public.communities(id),author_id uuid not null references public.profiles(id),body text not null check(length(body) between 5 and 2000),created_at timestamptz default now());
+alter table public.communities enable row level security;alter table public.community_members enable row level security;alter table public.community_posts enable row level security;
+create function public.is_member(group_id uuid) returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from community_members where community_id=group_id and user_id=auth.uid()); $$;
+revoke all on function public.is_member(uuid) from public;grant execute on function public.is_member(uuid) to authenticated;
+grant select on public.communities,public.community_members,public.community_posts to authenticated;
+grant insert on public.community_posts to authenticated;
+create policy community_read on public.communities for select to authenticated using(public.is_member(id));
+create policy members_read on public.community_members for select to authenticated using(public.is_member(community_id));
+create policy posts_read on public.community_posts for select to authenticated using(public.is_member(community_id));
+create policy posts_write on public.community_posts for insert to authenticated with check(author_id=auth.uid() and public.is_member(community_id));
+create function public.create_community(group_name text) returns uuid language plpgsql security definer set search_path=public as $$declare g uuid;begin if auth.uid() is null then raise exception 'Cần đăng nhập';end if;if (select count(*) from communities where owner_id=auth.uid())>=5 then raise exception 'Tối đa 5 cộng đồng mỗi tài khoản';end if;insert into communities(name,owner_id) values(trim(group_name),auth.uid()) returning id into g;insert into community_members values(g,auth.uid(),now());return g;end;$$;
+create function public.join_community(code text) returns uuid language plpgsql security definer set search_path=public as $$declare g uuid;begin if auth.uid() is null then raise exception 'Cần đăng nhập';end if;select id into g from communities where invite_code=trim(code);if g is null then raise exception 'Mã mời không hợp lệ';end if;insert into community_members values(g,auth.uid(),now()) on conflict do nothing;return g;end;$$;
+revoke all on function public.create_community(text),public.join_community(text) from public;grant execute on function public.create_community(text),public.join_community(text) to authenticated;
+commit;

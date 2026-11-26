@@ -1,0 +1,11 @@
+const fs=require('fs');let p='lib/cloud_app.dart',s=fs.readFileSync(p,'utf8');
+s=s.replace("String friendly(Object e) {", "String friendly(Object e) {");
+s=s.replace("if (e is AuthException) return e.message;", "if (e is AuthException) { final m=e.message.toLowerCase(); if(m.contains('invalid login')) return 'Email hoặc mật khẩu chưa đúng.'; if(m.contains('email not confirmed')) return 'Bạn cần xác nhận email trước khi đăng nhập.'; if(m.contains('rate limit')) return 'Đã gửi quá nhiều yêu cầu. Vui lòng đợi vài phút.'; if(m.contains('email address') || m.contains('sending confirmation')) return 'Chưa gửi được email xác nhận. Vui lòng liên hệ quản trị để kiểm tra dịch vụ email.'; return e.message; }");
+s=s.replace("home: const Home(),", "builder:(context,child)=>Container(color:const Color(0xFFF5F5F5),child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:child!))),\n home: const Home(),");
+s=s.replace("'*,listings(title,price,image_path)'", "'*,listings(title,price,image_path)'");
+s=s.replace("threads = t;", "threads = t.map((row)=>{...row,'listings':row['listings']??{'title':'Tin không còn hiển thị','price':0,'image_path':''}}).toList();");
+s=s.replace("child: Image.network(\n", "child: path.isEmpty ? Container(width:size,height:size,color:const Color(0xFFF1ECE6),child:const Icon(Icons.image_outlined)) : Image.network(\n");
+s=s.replace("setState(\n            () => message =", "setState(\n            () => message =");
+fs.writeFileSync(p,s);
+let m=JSON.parse(fs.readFileSync('web/manifest.json','utf8'));m.name='Chợ Gần';m.short_name='Chợ Gần';m.description='Mua bán đồ cũ gần bạn, miễn phí và gặp nhau trực tiếp.';m.background_color='#ffffff';m.theme_color='#ff6f32';fs.writeFileSync('web/manifest.json',JSON.stringify(m,null,2));
+let html=fs.readFileSync('web/index.html','utf8').replaceAll('cho_gan','Chợ Gần').replace('A new Flutter project.','Mua bán đồ cũ gần bạn. Gặp nhau trực tiếp, hoàn toàn miễn phí.');fs.writeFileSync('web/index.html',html);
