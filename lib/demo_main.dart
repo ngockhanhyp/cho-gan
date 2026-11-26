@@ -139,7 +139,7 @@ class MarketState extends State<Market> {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Chợ Gần',
+    title: 'Passy',
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: orange),
       scaffoldBackgroundColor: Colors.white,
@@ -637,7 +637,7 @@ class MarketState extends State<Market> {
       ...items.where((x) => saved.contains(x['id'])).map((x) => tile(c, x)),
       const SizedBox(height: 20),
       const Text(
-        'Chợ Gần · V1\nDữ liệu lưu trên thiết bị. Chưa có tài khoản trực tuyến hoặc đồng bộ giữa web và app.',
+        'Passy · V1\nDữ liệu lưu trên thiết bị. Chưa có tài khoản trực tuyến hoặc đồng bộ giữa web và app.',
         style: TextStyle(color: Colors.grey),
       ),
     ],

@@ -1,4 +1,4 @@
-name: Deploy Chợ Gần web
+name: Deploy Passy web
 
 on:
   push:

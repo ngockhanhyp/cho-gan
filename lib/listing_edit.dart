@@ -132,7 +132,7 @@ class _ListingLink extends State<ListingLink> {
       }
       if (s.hasError || s.data == null) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Chợ Gần')),
+          appBar: AppBar(title: const Text('Passy')),
           body: const PageBody(
             children: [
               EmptyState(

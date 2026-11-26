@@ -1,4 +1,4 @@
-# Chợ Gần V1 — bản thử nội bộ
+# Passy V1 — bản thử nội bộ
 
 ## Mở và cài
 - Web (domain chính): https://passy.id.vn/ — cần CNAME và cấu hình Pages; bản cũ https://ngockhanhyp.github.io/cho-gan/ không còn được build với base path mới.

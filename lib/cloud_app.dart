@@ -341,7 +341,7 @@ class ChoGan extends StatelessWidget {
   const ChoGan({super.key});
   @override
   Widget build(BuildContext c) => MaterialApp(
-    title: 'Chợ Gần',
+    title: 'Passy',
     locale: const Locale('vi'),
     supportedLocales: const [Locale('vi')],
     localizationsDelegates: const [
@@ -660,7 +660,7 @@ class _Home extends State<Home> {
         ),
         const SizedBox(width: 8),
         Text(
-          'Chợ Gần',
+          'Passy',
           style: TextStyle(
             fontSize: size * 0.62,
             fontWeight: FontWeight.w900,
@@ -979,7 +979,7 @@ class _Home extends State<Home> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Khám phá Chợ Gần',
+          'Khám phá Passy',
           style: TextStyle(fontSize: wide ? 22 : 19, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 14),
@@ -1423,7 +1423,7 @@ class _Home extends State<Home> {
               const Divider(color: Color(0xFFE5E5E5)),
               const SizedBox(height: 12),
               const Text(
-                '© 2026 Chợ Gần · Dự án cộng đồng thử nghiệm tại Hà Nội',
+                '© 2026 Passy · Dự án cộng đồng thử nghiệm tại Hà Nội',
                 style: TextStyle(color: Colors.black45, fontSize: 13),
               ),
             ],
@@ -1679,7 +1679,7 @@ class _Home extends State<Home> {
         ),
         const SizedBox(height: 24),
         const Text(
-          'Chợ Gần · Mua bán miễn phí, gặp nhau trực tiếp.\nKhông yêu cầu đặt cọc để mở khóa giao dịch.',
+          'Passy · Mua bán miễn phí, gặp nhau trực tiếp.\nKhông yêu cầu đặt cọc để mở khóa giao dịch.',
           textAlign: TextAlign.center,
           style: TextStyle(color: muted, height: 1.6, fontSize: 13),
         ),
@@ -1856,7 +1856,7 @@ class _Login extends State<Login> {
             padding: const EdgeInsets.all(24),
             children: [
               Text(
-                signup ? 'Tham gia Chợ Gần' : 'Chào hàng xóm!',
+                signup ? 'Tham gia Passy' : 'Chào hàng xóm!',
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
