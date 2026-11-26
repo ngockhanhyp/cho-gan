@@ -17,7 +17,7 @@ Giữ giao diện gốc, vị trí và email/mật khẩu. Không bật đăng k
 ## Kiểm tra không cần bí mật
 
 Chạy `dart tool/check_social_auth.dart`. Công cụ chỉ in trạng thái boolean Google/Facebook.
-Tại lúc thực hiện 26/11/2026: `google=false`, `facebook=false`.
+Tại lúc bắt đầu 26/11/2026: cả hai chưa bật. Kiểm tra 27/11/2026: `google=true`, `facebook=false`.
 
 ## Các URL chính xác
 
@@ -67,7 +67,18 @@ Không đăng ký `passy.id.vn` làm OAuth provider callback: provider luôn tr�
 
 ## Xác nhận sau khi cấu hình
 
-Trước bước bảo mật: build web release thành công; analyze không có vấn đề; đã kiểm tra form desktop và mobile 390×844, thông báo khi provider tắt hoạt động trên backend thật. Bộ test bao gồm session thành công đóng màn đăng nhập, hủy chờ, lỗi khởi chạy, provider tắt, callback và các luồng email/vị trí cũ. Chưa thử đăng nhập Google/Facebook thật vì hai provider chưa được cấu hình.
+Build web release thành công; analyze không có vấn đề; 19 kiểm thử qua. Đã kiểm tra form desktop và mobile 390×844, thông báo khi provider tắt hoạt động trên backend thật. Bộ test bao gồm session thành công đóng màn đăng nhập, hủy chờ, lỗi khởi chạy, provider tắt, callback và các luồng email/vị trí cũ.
+
+### Tiến độ cấu hình thực tế — 27/11/2026
+
+- Google Cloud project `Passy`, ID `inspired-data-515916-v6`; OAuth client `Passy Web` đã tạo. Client Secret chỉ nhập vào Supabase qua giao diện quản trị, không lưu trong repo.
+- Google provider đã lưu và bật; Skip nonce checks và Allow users without an email vẫn tắt.
+- Đã bổ sung ba redirect localhost, loopback và Android ở bảng trên, giữ hai URL cũ. Tổng allowlist hiện có 5 URL.
+- Tài khoản chủ dự án đã thêm vào Test users. Google vẫn ở chế độ Testing, chưa mở cho công chúng.
+- Đã lưu homepage, privacy URL và terms URL trong Google Branding. Không bật billing.
+- Kiểm thử thật: từ nút Google trên `http://127.0.0.1:8788/` → chọn tài khoản → đồng ý chia sẻ hồ sơ/email → Supabase callback → về Passy; URL callback được dọn về `/`; mở được Của tôi với tên Google và vẫn thấy một tin đăng cũ. Đây là bằng chứng UI tài khoản được giữ, chưa kiểm độc lập user ID trong DB.
+- Chưa kiểm APK Android hoặc tài khoản Google mới khác.
+- Facebook: tài khoản đang ở bước đăng ký Meta for Developers, trang `https://developers.facebook.com/async/registration/dialog/?src=default`. Nút Tiếp tục chấp nhận Meta Platform Terms và Developer Policies; chưa bấm. Chưa tạo Meta App, chưa có App Secret, Facebook provider vẫn tắt.
 
 1. Công cụ trạng thái trả true cho cả hai.
 2. Trên web: Google/Facebook tài khoản mới → callback → session → hồ sơ, đăng xuất và đăng nhập lại.
@@ -76,7 +87,7 @@ Trước bước bảo mật: build web release thành công; analyze không có
 5. Android: install build, trình duyệt ngoài → callback app → session. Không bật emulator khi chưa được người dùng đồng ý.
 6. Facebook thử người có role và người ngoài role sau khi Live; không coi Development mode là phát hành xong.
 
-Chưa đăng nhập Google/Meta/Supabase để cấu hình provider hoặc kiểm chứng OAuth end-to-end. Không merge `main`/deploy khi chưa cấu hình và thử thật.
+Giữ thay đổi trên nhánh riêng; chưa merge `main` hoặc deploy website chính. Tiếp tục từ bước điều khoản Meta; sau đó tạo App và cấu hình Facebook. Khi mở Google cho công chúng, kiểm tra lại Branding/Audience và các yêu cầu xác minh của Google trước khi chuyển Production.
 
 ## Tài liệu chính thức
 
