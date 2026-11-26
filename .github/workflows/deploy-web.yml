@@ -37,7 +37,7 @@ jobs:
         run: flutter pub get
 
       - name: Build web app
-        run: flutter build web --release --base-href /cho-gan/
+        run: flutter build web --release --base-href /
 
       - name: Add Flutter route fallback
         run: |

@@ -1,7 +1,7 @@
 # Chợ Gần V1 — bản thử nội bộ
 
 ## Mở và cài
-- Web đang chạy: https://ngockhanhyp.github.io/cho-gan/
+- Web (domain chính): https://passy.id.vn/ — cần CNAME và cấu hình Pages; bản cũ https://ngockhanhyp.github.io/cho-gan/ không còn được build với base path mới.
 - Tên miền dự kiến: https://passy.id.vn (đang chờ cấu hình DNS CNAME).
 - Web trên máy phát triển: http://127.0.0.1:8788
 - APK: outputs/ChoGan-v1-android-arm64.apk (sau khi build).
@@ -55,7 +55,7 @@ Quản trị dùng bảng admin_emails riêng với RLS. Email cấu hình phả
 - Email xác nhận dùng cấu hình Supabase hiện tại. Cần SMTP riêng và URL sản phẩm trước khi mở đăng ký đại trà.
 - Chưa phát hành Google Play/App Store; APK ký khóa thử, chỉ dùng pilot. iOS chưa build.
 - Chưa có analytics/monitoring vận hành đầy đủ, chính sách pháp lý hoàn chỉnh hay kiểm định an toàn sản phẩm thương mại.
-- `passy.id.vn` chưa nối DNS; cần CNAME trỏ tới `ngockhanhyp.github.io`, rồi cập nhật GitHub Pages và Supabase Auth URLs.
+- `passy.id.vn`: tạo CNAME `passy` → `ngockhanhyp.github.io`; file `web/CNAME` chứa `passy.id.vn`; base href build là `/`; cập nhật Supabase Auth Site URL và Redirect allowlist có `https://passy.id.vn/`.
 
 ## Benchmark 당근
 Bám theo cốt lõi địa phương, giao dịch trực tiếp miễn phí, tin dạng danh sách ảnh/giá, chat gắn món, lịch hẹn và phản hồi. Sử dụng tên/biểu tượng/mã nguồn riêng. Chưa đạt tương đương toàn bộ tính năng, chất lượng và quy mô của 당근.
