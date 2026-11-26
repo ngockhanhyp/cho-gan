@@ -74,7 +74,7 @@ Build web release thành công; analyze không có vấn đề; 19 kiểm thử 
 - Google Cloud project `Passy`, ID `inspired-data-515916-v6`; OAuth client `Passy Web` đã tạo. Client Secret chỉ nhập vào Supabase qua giao diện quản trị, không lưu trong repo.
 - Google provider đã lưu và bật; Skip nonce checks và Allow users without an email vẫn tắt.
 - Đã bổ sung ba redirect localhost, loopback và Android ở bảng trên, giữ hai URL cũ. Tổng allowlist hiện có 5 URL.
-- Tài khoản chủ dự án đã thêm vào Test users. Google vẫn ở chế độ Testing, chưa mở cho công chúng.
+- Tài khoản chủ dự án đã thêm vào Test users trước khi kiểm thử. Sau khi người dùng yêu cầu phát hành Google + email, đã chuyển Google Audience sang Production và xác nhận giao diện hiện In production (27/11/2026).
 - Đã lưu homepage, privacy URL và terms URL trong Google Branding. Không bật billing.
 - Kiểm thử thật: từ nút Google trên `http://127.0.0.1:8788/` → chọn tài khoản → đồng ý chia sẻ hồ sơ/email → Supabase callback → về Passy; URL callback được dọn về `/`; mở được Của tôi với tên Google và vẫn thấy một tin đăng cũ. Đây là bằng chứng UI tài khoản được giữ, chưa kiểm độc lập user ID trong DB.
 - Chưa kiểm APK Android hoặc tài khoản Google mới khác.
@@ -91,7 +91,9 @@ Build web release thành công; analyze không có vấn đề; 19 kiểm thử 
 5. Android: install build, trình duyệt ngoài → callback app → session. Không bật emulator khi chưa được người dùng đồng ý.
 6. Facebook thử người có role và người ngoài role sau khi Live; không coi Development mode là phát hành xong.
 
-Giữ thay đổi trên nhánh riêng; chưa merge `main` hoặc deploy website chính. Cấu hình kỹ thuật hai provider đã lưu, nhưng chưa sẵn sàng phát hành công khai. Tiếp tục kiểm thử Facebook khi kết nối phục hồi; hoàn thiện cơ chế xóa dữ liệu thật và xác minh Meta bằng thông tin chủ dự án. Khi mở Google cho công chúng, kiểm tra lại Branding/Audience và các yêu cầu xác minh của Google trước khi chuyển Production.
+Người dùng đã yêu cầu phát hành Google + email. Google Audience đã chuyển Production; bản phát hành mặc định ẩn Facebook, giữ code Facebook cho kiểm thử riêng bằng `Login(showFacebook: true)`. Email/mật khẩu vẫn giữ nguyên. Chưa kiểm tài khoản Google ngoài chủ dự án sau khi chuyển Production.
+
+Meta Business Portfolio Passy đã tạo và nối với app sau khi người dùng đồng ý, ID `1187437777054401`. Luồng xác minh tại Việt Nam hiện yêu cầu loại hình doanh nghiệp; chưa khai loại hình hay gửi giấy tờ vì chủ dự án là cá nhân chưa đăng ký kinh doanh. Facebook chưa phát hành công khai.
 
 ## Tài liệu chính thức
 

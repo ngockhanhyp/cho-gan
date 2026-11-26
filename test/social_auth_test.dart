@@ -123,6 +123,7 @@ void main() {
       await t.pumpWidget(
         MaterialApp(
           home: Login(
+            showFacebook: true,
             socialSignIn: (provider) async {
               calls.add(provider);
               return false;
@@ -155,6 +156,7 @@ void main() {
       await t.pumpWidget(
         MaterialApp(
           home: Login(
+            showFacebook: true,
             socialSignIn: (_) {
               attempts++;
               return completer.future;
@@ -196,6 +198,7 @@ void main() {
       await t.pumpWidget(
         MaterialApp(
           home: Login(
+            showFacebook: true,
             socialSignIn: (_) async =>
                 throw const AuthException('provider_disabled'),
           ),
@@ -238,6 +241,7 @@ void main() {
     );
     await t.tap(find.text('Mở đăng nhập'));
     await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sign-in-facebook')), findsNothing);
     await t.tap(find.byKey(const ValueKey('sign-in-google')));
     await t.pumpAndSettle();
     expect(find.text('Quay lại chọn cách đăng nhập'), findsOneWidget);

@@ -1705,7 +1705,8 @@ class ListingImage extends StatelessWidget {
 
 class Login extends StatefulWidget {
   final Future<bool> Function(OAuthProvider provider)? socialSignIn;
-  const Login({super.key, this.socialSignIn});
+  final bool showFacebook;
+  const Login({super.key, this.socialSignIn, this.showFacebook = false});
   @override
   State<Login> createState() => _Login();
 }
@@ -1901,8 +1902,10 @@ class _Login extends State<Login> {
               ),
               const SizedBox(height: 24),
               socialButton(OAuthProvider.google),
-              const SizedBox(height: 12),
-              socialButton(OAuthProvider.facebook),
+              if (widget.showFacebook) ...[
+                const SizedBox(height: 12),
+                socialButton(OAuthProvider.facebook),
+              ],
               if (oauthPending) ...[
                 const SizedBox(height: 12),
                 const Text('Hoàn tất đăng nhập trong trình duyệt. Nếu đã đóng trang đó, bạn có thể thử lại.',
