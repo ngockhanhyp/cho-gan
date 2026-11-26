@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -132,8 +133,16 @@ class _Home extends State<Home> {
   void initState() {
     super.initState();
     refresh();
-    auth = db.auth.onAuthStateChange.listen((_) {
+    auth = db.auth.onAuthStateChange.listen((state) {
       refresh();
+      if (state.event == AuthChangeEvent.passwordRecovery) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PasswordRecoveryPage()),
+          );
+        });
+      }
     });
   }
 
@@ -711,6 +720,7 @@ class _Login extends State<Login> {
         final r = await db.auth.signUp(
           email: email.text.trim(),
           password: password.text,
+          emailRedirectTo: kIsWeb ? Uri.base.origin : null,
           data: {'name': name.text.trim()},
         );
         if (r.session == null) {
@@ -726,6 +736,38 @@ class _Login extends State<Login> {
         );
       }
       if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => message = friendly(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> sendPasswordReset() async {
+    final address = email.text.trim();
+    if (!address.contains('@') ||
+        address.startsWith('@') ||
+        address.endsWith('@')) {
+      setState(
+        () => message =
+            'Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
+      );
+      return;
+    }
+    setState(() {
+      busy = true;
+      message = null;
+    });
+    try {
+      await db.auth.resetPasswordForEmail(
+        address,
+        redirectTo: kIsWeb ? Uri.base.origin : null,
+      );
+      if (mounted) {
+        setState(
+          () => message = 'Nếu email này có tài khoản, hướng dẫn đặt lại mật khẩu sẽ được gửi đến hộp thư.',
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => message = friendly(e));
     } finally {
@@ -777,6 +819,14 @@ class _Login extends State<Login> {
                 validator: (v) =>
                     v == null || v.length < 8 ? 'Ít nhất 8 ký tự' : null,
               ),
+              if (!signup)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: busy ? null : sendPasswordReset,
+                    child: const Text('Quên mật khẩu?'),
+                  ),
+                ),
               if (message != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -812,6 +862,99 @@ class _Login extends State<Login> {
               const Text(
                 'Tên hiển thị và tin đăng của bạn được công khai. Email không hiển thị trên hồ sơ.',
                 style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class PasswordRecoveryPage extends StatefulWidget {
+  const PasswordRecoveryPage({super.key});
+  @override
+  State<PasswordRecoveryPage> createState() => _PasswordRecoveryPageState();
+}
+
+class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
+  final password = TextEditingController();
+  final confirmation = TextEditingController();
+  final form = GlobalKey<FormState>();
+  bool busy = false;
+  String? message;
+
+  @override
+  void dispose() {
+    password.dispose();
+    confirmation.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    if (!form.currentState!.validate()) return;
+    setState(() => busy = true);
+    try {
+      await db.auth.updateUser(UserAttributes(password: password.text));
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Mật khẩu đã được cập nhật.')),
+      );
+    } catch (e) {
+      if (mounted) setState(() => message = friendly(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Đặt lại mật khẩu')),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Form(
+          key: form,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              const Text(
+                'Tạo mật khẩu mới cho tài khoản của bạn.',
+                style: TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+                validator: (value) => value == null || value.length < 8
+                    ? 'Mật khẩu cần ít nhất 8 ký tự'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: confirmation,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nhập lại mật khẩu',
+                ),
+                validator: (value) =>
+                    value != password.text ? 'Hai mật khẩu chưa khớp' : null,
+              ),
+              if (message != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    message!,
+                    style: const TextStyle(color: Colors.deepOrange),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: busy ? null : save,
+                child: Text(busy ? 'Đang cập nhật…' : 'Lưu mật khẩu mới'),
               ),
             ],
           ),
