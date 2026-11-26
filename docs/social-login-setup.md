@@ -17,7 +17,7 @@ Giữ giao diện gốc, vị trí và email/mật khẩu. Không bật đăng k
 ## Kiểm tra không cần bí mật
 
 Chạy `dart tool/check_social_auth.dart`. Công cụ chỉ in trạng thái boolean Google/Facebook.
-Tại lúc bắt đầu 26/11/2026: cả hai chưa bật. Kiểm tra 27/11/2026: `google=true`, `facebook=false`.
+Tại lúc bắt đầu 26/11/2026: cả hai chưa bật. Ngày 27/11/2026 đã xác nhận Google và Facebook đều Enabled trong Supabase Dashboard. Lần chạy công cụ sau khi bật Facebook không truy cập được public Auth settings do lỗi mạng; chưa có kết quả boolean mới từ công cụ.
 
 ## Các URL chính xác
 
@@ -78,7 +78,11 @@ Build web release thành công; analyze không có vấn đề; 19 kiểm thử 
 - Đã lưu homepage, privacy URL và terms URL trong Google Branding. Không bật billing.
 - Kiểm thử thật: từ nút Google trên `http://127.0.0.1:8788/` → chọn tài khoản → đồng ý chia sẻ hồ sơ/email → Supabase callback → về Passy; URL callback được dọn về `/`; mở được Của tôi với tên Google và vẫn thấy một tin đăng cũ. Đây là bằng chứng UI tài khoản được giữ, chưa kiểm độc lập user ID trong DB.
 - Chưa kiểm APK Android hoặc tài khoản Google mới khác.
-- Facebook: tài khoản đang ở bước đăng ký Meta for Developers, trang `https://developers.facebook.com/async/registration/dialog/?src=default`. Nút Tiếp tục chấp nhận Meta Platform Terms và Developer Policies; chưa bấm. Chưa tạo Meta App, chưa có App Secret, Facebook provider vẫn tắt.
+- Facebook: đã tạo Meta App `Passy`, App ID `1087185907614223`. Đã lưu domain, privacy/terms URL và category Mua sắm. Đã lưu Supabase callback trong Valid OAuth Redirect URI; Web/Client OAuth bật, HTTPS và strict redirect bật; embedded OAuth/JS SDK vẫn tắt.
+- Quyền `email` và `public_profile` đã hiện Sẵn sàng thử nghiệm. Không thêm quyền dữ liệu khác.
+- App Secret được chuyển trực tiếp từ trường hiển thị của Meta vào Supabase, không lưu trong repo. Facebook provider đã Save và xác nhận Enabled; Allow users without an email vẫn tắt. Trang Meta được tải lại để ẩn secret.
+- Thử nút Facebook trên preview đã rời Passy tới `www.facebook.com/dialog/oauth`, nhưng trang Facebook bị `ERR_CONNECTION_TIMED_OUT`; chưa xác nhận consent, callback hay session Facebook thành công.
+- Meta chưa phát hành: trang Go live chặn bởi URL hướng dẫn xóa dữ liệu và Xác minh doanh nghiệp. Bắt đầu xác minh mở hộp thoại Kết nối với Meta Business Suite, hiện chỉ có Tạo tài khoản mới; chưa tạo Business Suite hoặc gửi thông tin pháp lý.
 
 1. Công cụ trạng thái trả true cho cả hai.
 2. Trên web: Google/Facebook tài khoản mới → callback → session → hồ sơ, đăng xuất và đăng nhập lại.
@@ -87,7 +91,7 @@ Build web release thành công; analyze không có vấn đề; 19 kiểm thử 
 5. Android: install build, trình duyệt ngoài → callback app → session. Không bật emulator khi chưa được người dùng đồng ý.
 6. Facebook thử người có role và người ngoài role sau khi Live; không coi Development mode là phát hành xong.
 
-Giữ thay đổi trên nhánh riêng; chưa merge `main` hoặc deploy website chính. Tiếp tục từ bước điều khoản Meta; sau đó tạo App và cấu hình Facebook. Khi mở Google cho công chúng, kiểm tra lại Branding/Audience và các yêu cầu xác minh của Google trước khi chuyển Production.
+Giữ thay đổi trên nhánh riêng; chưa merge `main` hoặc deploy website chính. Cấu hình kỹ thuật hai provider đã lưu, nhưng chưa sẵn sàng phát hành công khai. Tiếp tục kiểm thử Facebook khi kết nối phục hồi; hoàn thiện cơ chế xóa dữ liệu thật và xác minh Meta bằng thông tin chủ dự án. Khi mở Google cho công chúng, kiểm tra lại Branding/Audience và các yêu cầu xác minh của Google trước khi chuyển Production.
 
 ## Tài liệu chính thức
 
