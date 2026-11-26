@@ -2128,6 +2128,7 @@ class _Compose extends State<Compose> {
       description = TextEditingController();
   final form = GlobalKey<FormState>();
   String category = 'Gia dụng';
+  String condition = 'Đã qua sử dụng - tốt';
   Uint8List? photo;
   String mime = 'image/jpeg';
   bool busy = false;
@@ -2193,7 +2194,7 @@ class _Compose extends State<Compose> {
       await db.from('listings').insert({
         'owner_id': uid,
         'title': title.text.trim(),
-        'description': description.text.trim(),
+        'description': 'Tình trạng: $condition\n\n${description.text.trim()}',
         'price': int.parse(price.text),
         'category': category,
         'area': widget.area,
@@ -2294,7 +2295,7 @@ class _Compose extends State<Compose> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: ['Nội thất', 'Điện tử', 'Gia dụng', 'Sách', 'Thời trang', 'Cho tặng']
+                children: ['Nội thất', 'Điện tử', 'Gia dụng', 'Đồ em bé', 'Thời trang', 'Sách', 'Thể thao', 'Khác']
                     .map(
                       (v) => ChoiceChip(
                         label: Text(v),
@@ -2312,6 +2313,23 @@ class _Compose extends State<Compose> {
                       ),
                     )
                     .toList(),
+              ),
+              const SizedBox(height: 24),
+              label('Tình trạng món đồ'),
+              DropdownButtonFormField<String>(
+                initialValue: condition,
+                decoration: const InputDecoration(
+                  helperText: 'Chọn đúng tình trạng và ghi rõ khuyết điểm trong mô tả.',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Mới', child: Text('Mới')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - như mới', child: Text('Đã qua sử dụng - như mới')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - tốt', child: Text('Đã qua sử dụng - tốt')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - có khuyết điểm', child: Text('Đã qua sử dụng - có khuyết điểm')),
+                ],
+                onChanged: busy ? null : (value) {
+                  if (value != null) setState(() => condition = value);
+                },
               ),
               const SizedBox(height: 24),
               label('Giá bán'),
@@ -2335,7 +2353,7 @@ class _Compose extends State<Compose> {
               TextFormField(
                 controller: description,
                 maxLines: 6,
-                maxLength: 4000,
+                maxLength: 3950,
                 decoration: const InputDecoration(
                   hintText:
                       'Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…',
