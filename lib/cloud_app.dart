@@ -599,13 +599,20 @@ class _Home extends State<Home> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
-                  '📍 Chợ đồ cũ của hàng xóm Hà Nội',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: brand,
-                    fontSize: 13,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on, color: brand, size: 15),
+                    SizedBox(width: 4),
+                    Text(
+                      'Chợ đồ cũ của hàng xóm Hà Nội',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: brand,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
