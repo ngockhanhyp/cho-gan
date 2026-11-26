@@ -1,7 +1,7 @@
 {
   "name": "Chợ Gần",
   "short_name": "Chợ Gần",
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ff6f32",
@@ -31,5 +31,8 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/",
+  "lang": "vi",
+  "scope": "/"
 }

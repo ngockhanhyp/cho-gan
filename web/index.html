@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -29,10 +29,45 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Chợ Gần</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ff6f32">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://passy.id.vn/">
+
+  <!-- Chia sẻ mạng xã hội -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Chợ Gần">
+  <meta property="og:locale" content="vi_VN">
+  <meta property="og:title" content="Chợ Gần – Mua bán đồ cũ gần bạn">
+  <meta property="og:description" content="Mua bán đồ cũ gần bạn. Gặp nhau trực tiếp, hoàn toàn miễn phí.">
+  <meta property="og:url" content="https://passy.id.vn/">
+  <meta property="og:image" content="https://passy.id.vn/icons/Icon-512.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Chợ Gần – Mua bán đồ cũ gần bạn">
+  <meta name="twitter:description" content="Mua bán đồ cũ gần bạn. Gặp nhau trực tiếp, hoàn toàn miễn phí.">
+  <meta name="twitter:image" content="https://passy.id.vn/icons/Icon-512.png">
+
+  <title>Chợ Gần – Mua bán đồ cũ gần bạn</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; background: #fff; }
+    #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px; font-family: system-ui, sans-serif; color: #ff6f32; z-index: 0; }
+    #splash img { width: 96px; height: 96px; border-radius: 22px; }
+    #splash .bar { width: 120px; height: 4px; border-radius: 2px; background: #ffe3d6; overflow: hidden; }
+    #splash .bar::after { content: ""; display: block; width: 40%; height: 100%; background: #ff6f32;
+      animation: slide 1.1s ease-in-out infinite; }
+    @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+    flutter-view, flt-glass-pane { z-index: 1; }
+  </style>
 </head>
 <body>
+  <div id="splash" aria-label="Đang tải Chợ Gần">
+    <img src="icons/Icon-192.png" alt="Chợ Gần">
+    <strong>Chợ Gần</strong>
+    <div class="bar"></div>
+  </div>
+  <noscript>Chợ Gần cần bật JavaScript để hoạt động. Xem <a href="privacy.html">Chính sách riêng tư</a>.</noscript>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
