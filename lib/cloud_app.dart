@@ -13,6 +13,8 @@ part 'listing_edit.dart';
 
 const brand = Color(0xFFFF6F32);
 final db = Supabase.instance.client;
+String? authRedirectUrl() =>
+    kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : null;
 String money(dynamic value) => value == 0
     ? 'Cho tặng'
     : '${value.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
@@ -720,7 +722,7 @@ class _Login extends State<Login> {
         final r = await db.auth.signUp(
           email: email.text.trim(),
           password: password.text,
-          emailRedirectTo: kIsWeb ? Uri.base.origin : null,
+          emailRedirectTo: authRedirectUrl(),
           data: {'name': name.text.trim()},
         );
         if (r.session == null) {
@@ -761,7 +763,7 @@ class _Login extends State<Login> {
     try {
       await db.auth.resetPasswordForEmail(
         address,
-        redirectTo: kIsWeb ? Uri.base.origin : null,
+        redirectTo: authRedirectUrl(),
       );
       if (mounted) {
         setState(
