@@ -35,7 +35,7 @@ void main() {
     await t.pumpWidget(const ChoGan());
     await t.pumpAndSettle();
     expect(
-      find.text('Khu phố đang chờ món đồ đầu tiên!'),
+      find.text('Chưa có món nào ở đây'),
       findsOneWidget,
       reason: t
           .widgetList<Text>(find.byType(Text))
@@ -62,7 +62,7 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
     await t.pumpWidget(const ChoGan());
     await t.pumpAndSettle();
-    await t.tap(find.text('Khu phố'));
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Khu phố')));
     await t.pumpAndSettle();
     expect(find.text('Nhập mã mời'), findsOneWidget);
     expect(t.takeException(), isNull);

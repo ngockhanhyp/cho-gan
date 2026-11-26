@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'location_picker.dart';
+
 part 'trust.dart';
 part 'community.dart';
 part 'listing_edit.dart';
@@ -262,7 +264,7 @@ class SectionTitle extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     ),
   );
@@ -396,6 +398,7 @@ class _Home extends State<Home> {
   List<Map<String, dynamic>> listings = [], threads = [];
   Set<String> favorites = {};
   bool loading = true;
+  bool areaPickerOpened = false;
   String? error;
   StreamSubscription<AuthState>? auth;
   final categories = [
@@ -411,6 +414,11 @@ class _Home extends State<Home> {
   void initState() {
     super.initState();
     refresh();
+    loadPreferredPassyArea().then((saved) {
+      if (mounted && !areaPickerOpened && saved != null) {
+        setState(() => area = saved);
+      }
+    });
     auth = db.auth.onAuthStateChange.listen((state) {
       refresh();
       if (state.event == AuthChangeEvent.passwordRecovery) {
@@ -509,41 +517,13 @@ class _Home extends State<Home> {
     }
   }
 
-  static const areas = [
-    'Cầu Giấy',
-    'Nam Từ Liêm',
-    'Ba Đình',
-    'Thanh Xuân',
-    'Tất cả Hà Nội',
-  ];
+  static const areas = passyAreas;
 
-  Future<void> pickArea() => showModalBottomSheet(
-    context: context,
-    builder: (s) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Text(
-              'Chọn khu vực của bạn',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-          ),
-          ...areas.map(
-            (a) => ListTile(
-              title: Text(a),
-              trailing: a == area ? const Icon(Icons.check, color: brand) : null,
-              onTap: () {
-                setState(() => area = a);
-                Navigator.pop(s);
-              },
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+  Future<void> pickArea() async {
+    areaPickerOpened = true;
+    final selected = await showLocationPicker(context, currentArea: area);
+    if (selected != null && mounted) setState(() => area = selected);
+  }
 
   Future<void> compose() async {
     if (!await login() || !mounted) return;
@@ -769,8 +749,8 @@ class _Home extends State<Home> {
                     ]
                   : [
                       logo(size: 30),
-                      const Spacer(),
-                      areaButton(),
+                      const SizedBox(width: 8),
+                      Expanded(child: Align(alignment: Alignment.centerRight, child: areaButton())),
                       IconButton(
                         tooltip: 'Tải lại',
                         onPressed: refresh,
@@ -871,14 +851,14 @@ class _Home extends State<Home> {
                   children: [
                     Icon(Icons.location_on, color: brand, size: 15),
                     SizedBox(width: 4),
-                    Text(
+                    Flexible(child: Text(
                       'Chợ đồ cũ của hàng xóm Hà Nội',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: brand,
                         fontSize: 13,
                       ),
-                    ),
+                    )),
                   ],
                 ),
               ),
