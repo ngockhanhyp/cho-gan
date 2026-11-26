@@ -49,14 +49,21 @@ class _EditListing extends State<EditListing> {
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const Text('Chỉnh sửa tin')),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Form(
-          key: form,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
+    body: Form(
+      key: form,
+      child: PageBody(
+        maxWidth: 680,
+        children: [
+              const Text(
+                'Cập nhật tin đăng',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Giá và mô tả rõ ràng giúp hàng xóm quyết định nhanh hơn.',
+                style: TextStyle(color: muted),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: title,
                 maxLength: 160,
@@ -91,9 +98,7 @@ class _EditListing extends State<EditListing> {
                 onPressed: busy ? null : save,
                 child: Text(busy ? 'Đang lưu…' : 'Lưu thay đổi'),
               ),
-            ],
-          ),
-        ),
+        ],
       ),
     ),
   );
@@ -128,8 +133,14 @@ class _ListingLink extends State<ListingLink> {
       if (s.hasError || s.data == null) {
         return Scaffold(
           appBar: AppBar(title: const Text('Chợ Gần')),
-          body: const Center(
-            child: Text('Tin không còn hiển thị hoặc liên kết không hợp lệ.'),
+          body: const PageBody(
+            children: [
+              EmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'Không tìm thấy tin',
+                text: 'Tin không còn hiển thị hoặc liên kết không hợp lệ.',
+              ),
+            ],
           ),
         );
       }

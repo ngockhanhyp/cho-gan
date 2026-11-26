@@ -95,16 +95,38 @@ class _CommunitiesPage extends State<CommunitiesPage> {
   }
 
   @override
-  Widget build(BuildContext c) => ListView(
-    padding: const EdgeInsets.all(24),
+  Widget build(BuildContext c) => PageBody(
+    maxWidth: 820,
     children: [
-      const Text(
-        'Chuyện quanh mình',
-        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 12),
-      const Text(
-        'Kết nối từ đồng nghiệp, bạn bè và hàng xóm. Bài viết trong cộng đồng chỉ dành cho thành viên.',
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFEAF7F0), Color(0xFFD9F0E4)]),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Chuyện quanh mình',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Hỏi đáp, chia sẻ tin hữu ích với đồng nghiệp, bạn bè và hàng xóm. '
+                    'Bài viết trong cộng đồng chỉ dành cho thành viên.',
+                    style: TextStyle(color: muted, height: 1.6),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 16),
+            Icon(Icons.groups_rounded, size: 64, color: Color(0xFF2E9E6B)),
+          ],
+        ),
       ),
       const SizedBox(height: 20),
       Wrap(
@@ -126,15 +148,17 @@ class _CommunitiesPage extends State<CommunitiesPage> {
       if (loading) const Center(child: CircularProgressIndicator()),
       if (error != null) Text(error!),
       if (groups.isEmpty && !loading)
-        const Text('Chưa có cộng đồng. Mời những người bạn quen cùng bắt đầu.'),
+        const EmptyState(
+          icon: Icons.groups_outlined,
+          title: 'Chưa tham gia cộng đồng nào',
+          text: 'Nhập mã mời từ người quen, hoặc tạo cộng đồng cho khu nhà, cơ quan của bạn.',
+        ),
+      if (groups.isNotEmpty) const SectionTitle('Cộng đồng của bạn'),
       ...groups.map(
         (g) => Card(
           child: ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: const CircleAvatar(
-              backgroundColor: Color(0xFFFFE5D5),
-              child: Icon(Icons.people_outline, color: brand),
-            ),
+            leading: Avatar(name: '${g['name']}', size: 48),
             title: Text(g['name']),
             subtitle: const Text('Nhóm có mã mời · không xác minh cư trú'),
             trailing: const Icon(Icons.chevron_right),
@@ -219,13 +243,18 @@ class _CommunityBoard extends State<CommunityBoard> {
       title: Text(widget.group['name']),
       actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))],
     ),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+    body: PageBody(
           children: [
             ExpansionTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: line),
+              ),
+              collapsedShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: line),
+              ),
+              leading: const Icon(Icons.vpn_key_outlined, color: brand),
               title: const Text('Mời người bạn quen'),
               subtitle: const Text(
                 'Ai có mã đều có thể tham gia. Chia sẻ có chọn lọc.',
@@ -259,6 +288,7 @@ class _CommunityBoard extends State<CommunityBoard> {
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(140, 48)),
                 onPressed: busy ? null : post,
                 child: Text(busy ? 'Đang đăng…' : 'Chia sẻ'),
               ),
@@ -266,7 +296,11 @@ class _CommunityBoard extends State<CommunityBoard> {
             const SizedBox(height: 24),
             if (error != null) Text(error!),
             if (posts.isEmpty)
-              const Text('Chưa có bài viết. Hãy chào cộng đồng của bạn!'),
+              const EmptyState(
+                icon: Icons.waving_hand_outlined,
+                title: 'Chưa có bài viết',
+                text: 'Hãy chào cộng đồng của bạn!',
+              ),
             ...posts.map(
               (p) => Card(
                 child: Padding(
@@ -274,11 +308,20 @@ class _CommunityBoard extends State<CommunityBoard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        p['profiles']?['name'] ?? 'Thành viên',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Avatar(name: p['profiles']?['name'] ?? 'Thành viên', size: 36),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              p['profiles']?['name'] ?? 'Thành viên',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          Text(timeAgo(p['created_at']), style: const TextStyle(color: muted, fontSize: 12)),
+                        ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Text(
                         p['body'],
                         style: const TextStyle(fontSize: 16, height: 1.5),
@@ -289,8 +332,6 @@ class _CommunityBoard extends State<CommunityBoard> {
               ),
             ),
           ],
-        ),
-      ),
     ),
   );
 }

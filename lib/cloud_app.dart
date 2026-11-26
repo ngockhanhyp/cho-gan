@@ -49,6 +49,294 @@ String friendly(Object e) {
 void notice(BuildContext c, String text) =>
     ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(text)));
 
+const ink = Color(0xFF1A1C20);
+const muted = Color(0xFF6B7078);
+const line = Color(0xFFEBECEE);
+const soft = Color(0xFFF6F7F8);
+const brandSoft = Color(0xFFFFF1E8);
+
+bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 900;
+
+String timeAgo(dynamic iso) {
+  final t = DateTime.tryParse('${iso ?? ''}');
+  if (t == null) return '';
+  final d = DateTime.now().difference(t.toLocal());
+  if (d.inMinutes < 1) return 'vừa xong';
+  if (d.inMinutes < 60) return '${d.inMinutes} phút trước';
+  if (d.inHours < 24) return '${d.inHours} giờ trước';
+  if (d.inDays < 30) return '${d.inDays} ngày trước';
+  return '${t.day}/${t.month}/${t.year}';
+}
+
+ThemeData appTheme() {
+  final shape12 = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+  OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(color: c, width: w),
+  );
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: brand,
+      primary: brand,
+      surface: Colors.white,
+    ),
+    scaffoldBackgroundColor: Colors.white,
+    dividerTheme: const DividerThemeData(color: line, space: 1),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      foregroundColor: ink,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: ink,
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+      ),
+      shape: Border(bottom: BorderSide(color: line)),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: soft,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(color: muted),
+      floatingLabelStyle: const TextStyle(color: brand, fontWeight: FontWeight.w600),
+      border: border(Colors.transparent),
+      enabledBorder: border(Colors.transparent),
+      focusedBorder: border(brand, 1.5),
+      errorBorder: border(const Color(0xFFE5484D)),
+      focusedErrorBorder: border(const Color(0xFFE5484D), 1.5),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: brand,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: const Color(0xFFE9E9EB),
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+        shape: shape12,
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: ink,
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        side: const BorderSide(color: line),
+        shape: shape12,
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: brand,
+        shape: shape12,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: line),
+      ),
+    ),
+    chipTheme: const ChipThemeData(
+      backgroundColor: Colors.white,
+      side: BorderSide(color: line),
+      shape: StadiumBorder(),
+      labelStyle: TextStyle(color: ink, fontWeight: FontWeight.w600),
+    ),
+    listTileTheme: const ListTileThemeData(
+      iconColor: muted,
+      titleTextStyle: TextStyle(color: ink, fontSize: 15, fontWeight: FontWeight.w600),
+      subtitleTextStyle: TextStyle(color: muted, fontSize: 13),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      showDragHandle: true,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: ink,
+      shape: shape12,
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      indicatorColor: Color(0xFFFFE5D5),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: brand),
+  );
+}
+
+/// Centered, width-limited page body used by every inner page.
+class PageBody extends StatelessWidget {
+  final List<Widget> children;
+  final double maxWidth;
+  final EdgeInsets? padding;
+  const PageBody({
+    super.key,
+    required this.children,
+    this.maxWidth = 720,
+    this.padding,
+  });
+  @override
+  Widget build(BuildContext c) => ListView(
+    padding: EdgeInsets.zero,
+    children: [
+      Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Padding(
+            padding: padding ??
+                EdgeInsets.symmetric(horizontal: isWide(c) ? 24 : 16, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class SectionTitle extends StatelessWidget {
+  final String text;
+  final String? sub;
+  final Widget? trailing;
+  const SectionTitle(this.text, {super.key, this.sub, this.trailing});
+  @override
+  Widget build(BuildContext c) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: isWide(c) ? 22 : 19,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+              ),
+              if (sub != null) ...[
+                const SizedBox(height: 4),
+                Text(sub!, style: const TextStyle(color: muted)),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    ),
+  );
+}
+
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title, text;
+  final Widget? action;
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.text,
+    this.action,
+  });
+  @override
+  Widget build(BuildContext c) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 24),
+    decoration: BoxDecoration(color: soft, borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: const BoxDecoration(color: brandSoft, shape: BoxShape.circle),
+          child: Icon(icon, size: 34, color: brand),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: ink),
+        ),
+        const SizedBox(height: 6),
+        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: muted, height: 1.5)),
+        if (action != null) ...[const SizedBox(height: 18), action!],
+      ],
+    ),
+  );
+}
+
+class Avatar extends StatelessWidget {
+  final String name;
+  final double size;
+  const Avatar({super.key, required this.name, this.size = 44});
+  @override
+  Widget build(BuildContext c) {
+    final palette = [
+      brand,
+      const Color(0xFF2E9E6B),
+      const Color(0xFF3B6FE0),
+      const Color(0xFF9B5DE5),
+      const Color(0xFFE2A23B),
+    ];
+    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final color = palette[name.hashCode.abs() % palette.length];
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
+      child: Text(
+        letter,
+        style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: size * 0.42),
+      ),
+    );
+  }
+}
+
+class StatusBadge extends StatelessWidget {
+  final String? status;
+  const StatusBadge(this.status, {super.key});
+  @override
+  Widget build(BuildContext c) {
+    final (text, color) = switch (status) {
+      'sold' => ('Đã bán', ink),
+      'reserved' => ('Đang hẹn', const Color(0xFF2E9E6B)),
+      'hidden' => ('Đã ẩn', muted),
+      _ => ('Đang bán', brand),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
 class ChoGan extends StatelessWidget {
   const ChoGan({super.key});
   @override
@@ -62,39 +350,8 @@ class ChoGan extends StatelessWidget {
       GlobalCupertinoLocalizations.delegate,
     ],
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: brand),
-      scaffoldBackgroundColor: Colors.white,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: brand,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.all(18),
-        ),
-      ),
-    ),
-    builder: (context, child) => Container(
-      color: const Color(0xFFF5F5F5),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1440),
-          child: child!,
-        ),
-      ),
-    ),
+    theme: appTheme(),
+    builder: (context, child) => ColoredBox(color: Colors.white, child: child!),
     onGenerateRoute: (settings) {
       final n = settings.name ?? '';
       if (n.startsWith('/listing/')) {
@@ -327,16 +584,16 @@ class _Home extends State<Home> {
           )
         : page == 0
         ? feed(wide)
-        : Center(
+        : page == 1
+        ? Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 960),
-              child: page == 1
-                  ? const CommunitiesPage()
-                  : page == 2
-                  ? inbox()
-                  : profile(),
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: const CommunitiesPage(),
             ),
-          );
+          )
+        : page == 2
+        ? inbox()
+        : profile();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: PreferredSize(
@@ -1176,191 +1433,255 @@ class _Home extends State<Home> {
     );
   }
 
-  Widget tile(Map<String, dynamic> x) => InkWell(
-    onTap: () async {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => Detail(item: x)),
+  Widget grid(List<Map<String, dynamic>> items) => LayoutBuilder(
+    builder: (_, box) {
+      final cols = (box.maxWidth / 210).floor().clamp(2, 4);
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: items.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cols,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 24,
+          mainAxisExtent: box.maxWidth / cols + 104,
+        ),
+        itemBuilder: (_, i) => card(items[i]),
       );
-      refresh();
     },
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListingImage(path: x['image_path'], size: 100),
-          const SizedBox(width: 16),
-          Expanded(
+  );
+
+  Widget inbox() {
+    final uid = db.auth.currentUser?.id;
+    return PageBody(
+      maxWidth: 820,
+      children: [
+        const SectionTitle('Trò chuyện', sub: 'Tin nhắn với người mua và người bán'),
+        if (uid == null)
+          EmptyState(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Đăng nhập để trò chuyện',
+            text: 'Nhắn tin trực tiếp với hàng xóm để hỏi món đồ và hẹn gặp.',
+            action: FilledButton(onPressed: login, child: const Text('Đăng nhập')),
+          )
+        else if (threads.isEmpty)
+          EmptyState(
+            icon: Icons.forum_outlined,
+            title: 'Chưa có cuộc trò chuyện nào',
+            text: 'Mở món đồ bạn thích và bấm “Nhắn tin hỏi mua” để bắt đầu.',
+            action: OutlinedButton(
+              onPressed: () => browse('Tất cả'),
+              child: const Text('Xem đồ quanh bạn'),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: line),
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  x['title'],
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w500,
+                for (final (i, t) in threads.indexed) ...[
+                  if (i > 0) const Divider(indent: 84),
+                  InkWell(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => Chat(thread: t)),
+                      );
+                      refresh();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: ListingImage(path: t['listings']['image_path'] ?? '', size: 56),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t['listings']['title'] ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${t['buyer_id'] == uid ? 'Bạn hỏi mua' : 'Có người hỏi mua'} · ${money(t['listings']['price'])}',
+                                  style: const TextStyle(color: muted, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(timeAgo(t['created_at']), style: const TextStyle(color: muted, fontSize: 12)),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right, color: Colors.black26),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${x['area']} · ${x['profiles']?['name'] ?? 'Thành viên'}',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${x['status'] == 'sold'
-                      ? 'Đã bán · '
-                      : x['status'] == 'reserved'
-                      ? 'Đang hẹn · '
-                      : ''}${money(x['price'])}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                ],
               ],
             ),
           ),
-          IconButton(
-            onPressed: () => favorite(x),
-            icon: Icon(
-              favorites.contains(x['id'])
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-              color: favorites.contains(x['id']) ? brand : Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-  Widget neighborhood() => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      const Text(
-        'Gần nhau hơn mỗi ngày',
-        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 16),
-      Text('Cộng đồng $area', style: const TextStyle(fontSize: 20)),
-      const SizedBox(height: 16),
-      const Text(
-        'Bắt đầu từ đồng nghiệp, bạn bè và những người ở gần. Chọn nơi công cộng để gặp, kiểm tra hàng và thống nhất giá trước khi trao đổi.',
-        style: TextStyle(fontSize: 17, height: 1.6),
-      ),
-      const SizedBox(height: 24),
-      const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text(
-            'Khu vực hiện do thành viên tự chọn. Chợ Gần chưa xác minh cư trú hoặc bảo đảm chất lượng món đồ.',
-          ),
-        ),
-      ),
-      const SizedBox(height: 20),
-      Text(
-        '${listings.where((x) => x['area'] == area && x['status'] == 'available').length} món đang tìm chủ mới',
-      ),
-      TextButton(
-        onPressed: () => setState(() => page = 0),
-        child: const Text('Khám phá món đồ'),
-      ),
-    ],
-  );
-  Widget inbox() => ListView(
-    padding: const EdgeInsets.all(20),
-    children: [
-      const Text(
-        'Trò chuyện',
-        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 20),
-      if (db.auth.currentUser == null)
-        FilledButton(
-          onPressed: login,
-          child: const Text('Đăng nhập để trò chuyện'),
-        )
-      else if (threads.isEmpty)
-        const Text('Mở món đồ bạn thích và nhắn người bán để bắt đầu.'),
-      ...threads.map(
-        (t) => ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          leading: ListingImage(path: t['listings']['image_path'], size: 60),
-          title: Text(t['listings']['title']),
-          subtitle: Text(money(t['listings']['price'])),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => Chat(thread: t)),
-          ),
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
+
   Widget profile() {
     final user = db.auth.currentUser;
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFFFFE5D5),
-            child: Icon(Icons.person_outline, color: brand),
-          ),
-          title: Text(
-            user?.userMetadata?['name'] ?? 'Chào hàng xóm!',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(
-            user == null
-                ? 'Đăng nhập để mua bán cùng cộng đồng'
-                : 'Thành viên · chưa xác minh khu vực',
-          ),
-        ),
-        const SizedBox(height: 20),
-        if (user == null)
-          FilledButton(
-            onPressed: login,
-            child: const Text('Đăng nhập / Tạo tài khoản'),
-          )
-        else ...[
-          const Text(
-            'Tin của tôi',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          ...listings.where((x) => x['owner_id'] == user.id).map(tile),
-          const SizedBox(height: 20),
-          const Text(
-            'Món đã lưu',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          ...listings.where((x) => favorites.contains(x['id'])).map(tile),
-          ListTile(
-            leading: const Icon(Icons.admin_panel_settings_outlined),
-            title: const Text('Quản trị'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ModerationPage()),
+    if (user == null) {
+      return PageBody(
+        maxWidth: 820,
+        children: [
+          EmptyState(
+            icon: Icons.person_outline_rounded,
+            title: 'Chào hàng xóm!',
+            text: 'Đăng nhập để đăng tin, lưu món đồ yêu thích và trò chuyện với người gần bạn.',
+            action: FilledButton(
+              onPressed: login,
+              child: const Text('Đăng nhập / Tạo tài khoản'),
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              await db.auth.signOut();
-              refresh();
-            },
-            child: const Text('Đăng xuất'),
-          ),
         ],
-        const SizedBox(height: 30),
+      );
+    }
+    final name = '${user.userMetadata?['name'] ?? 'Hàng xóm'}';
+    final mine = listings.where((x) => x['owner_id'] == user.id).toList();
+    final saved = listings.where((x) => favorites.contains(x['id'])).toList();
+    Widget stat(String value, String label) => Expanded(
+      child: Column(
+        children: [
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(color: muted, fontSize: 13)),
+        ],
+      ),
+    );
+    Widget menu(IconData icon, String text, VoidCallback onTap, {Color? color}) => ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(text, style: TextStyle(color: color)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.black26),
+      onTap: onTap,
+    );
+    return PageBody(
+      maxWidth: 960,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFFFFF3EA), Color(0xFFFFE6D6)]),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Avatar(name: name, size: 64),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text('$area · chưa xác minh khu vực', style: const TextStyle(color: muted)),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      minimumSize: const Size(0, 40),
+                    ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => MemberPage(id: user.id, name: name)),
+                    ),
+                    child: const Text('Hồ sơ công khai'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                child: Row(
+                  children: [
+                    stat('${mine.where((x) => x['status'] == 'available').length}', 'Đang bán'),
+                    stat('${mine.where((x) => x['status'] == 'sold').length}', 'Đã bán'),
+                    stat('${saved.length}', 'Đã lưu'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        SectionTitle(
+          'Tin của tôi',
+          trailing: TextButton.icon(
+            onPressed: compose,
+            icon: const Icon(Icons.add),
+            label: const Text('Đăng tin'),
+          ),
+        ),
+        if (mine.isEmpty)
+          const EmptyState(
+            icon: Icons.sell_outlined,
+            title: 'Bạn chưa đăng món nào',
+            text: 'Chụp ảnh món đồ không còn dùng và đăng miễn phí trong một phút.',
+          )
+        else
+          grid(mine),
+        const SizedBox(height: 32),
+        const SectionTitle('Món đã lưu'),
+        if (saved.isEmpty)
+          const EmptyState(
+            icon: Icons.favorite_border_rounded,
+            title: 'Chưa lưu món nào',
+            text: 'Bấm biểu tượng trái tim trên món đồ để xem lại sau.',
+          )
+        else
+          grid(saved),
+        const SizedBox(height: 32),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: line),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              menu(Icons.verified_user_outlined, 'Giao dịch an toàn', safetyTips),
+              const Divider(),
+              menu(
+                Icons.admin_panel_settings_outlined,
+                'Quản trị báo cáo',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ModerationPage()),
+                ),
+              ),
+              const Divider(),
+              menu(Icons.logout_rounded, 'Đăng xuất', () async {
+                await db.auth.signOut();
+                refresh();
+              }, color: const Color(0xFFC62828)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         const Text(
-          'Chợ Gần · V1\nMua bán miễn phí. Gặp nhau trực tiếp.\nKhông yêu cầu đặt cọc để mở khóa giao dịch.',
-          style: TextStyle(color: Colors.grey, height: 1.6),
+          'Chợ Gần · Mua bán miễn phí, gặp nhau trực tiếp.\nKhông yêu cầu đặt cọc để mở khóa giao dịch.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: muted, height: 1.6, fontSize: 13),
         ),
       ],
     );
@@ -1480,24 +1801,72 @@ class _Login extends State<Login> {
     }
   }
 
+  Widget brandPanel() => Container(
+    padding: const EdgeInsets.all(48),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFFFF7A3D), Color(0xFFFF5A1F)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.home_rounded, color: Colors.white, size: 56),
+        SizedBox(height: 24),
+        Text(
+          'Đồ cũ của bạn,\nniềm vui của hàng xóm.',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            height: 1.25,
+          ),
+        ),
+        SizedBox(height: 16),
+        Text(
+          'Đăng tin miễn phí, nhắn tin trực tiếp và hẹn gặp ở chỗ thuận tiện quanh nhà.',
+          style: TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
+        ),
+        SizedBox(height: 32),
+        _Perk('Miễn phí cho người mua và người bán'),
+        _Perk('Chỉ hiện khu vực, không lộ địa chỉ nhà'),
+        _Perk('Báo cáo và chặn tài khoản đáng ngờ'),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: Text(signup ? 'Tạo tài khoản' : 'Chào hàng xóm!')),
-    body: Center(
+    appBar: AppBar(title: Text(signup ? 'Tạo tài khoản' : 'Đăng nhập')),
+    body: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isWide(c)) Expanded(child: brandPanel()),
+        Expanded(
+          child: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: Form(
           key: form,
           child: ListView(
+            shrinkWrap: true,
             padding: const EdgeInsets.all(24),
             children: [
-              const Icon(Icons.waving_hand_outlined, size: 64, color: brand),
-              const SizedBox(height: 24),
-              const Text(
-                'Món đồ cũ. Kết nối mới.',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              Text(
+                signup ? 'Tham gia Chợ Gần' : 'Chào hàng xóm!',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              Text(
+                signup
+                    ? 'Tạo tài khoản miễn phí để đăng tin và nhắn tin.'
+                    : 'Đăng nhập để mua bán cùng người gần bạn.',
+                style: const TextStyle(color: muted, fontSize: 15),
+              ),
+              const SizedBox(height: 28),
               if (signup) ...[
                 TextFormField(
                   controller: name,
@@ -1564,14 +1933,37 @@ class _Login extends State<Login> {
                       : 'Chưa có tài khoản? Đăng ký',
                 ),
               ),
+              const SizedBox(height: 8),
               const Text(
                 'Tên hiển thị và tin đăng của bạn được công khai. Email không hiển thị trên hồ sơ.',
-                style: TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: muted, fontSize: 13, height: 1.5),
               ),
             ],
           ),
         ),
       ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Perk extends StatelessWidget {
+  final String text;
+  const _Perk(this.text);
+  @override
+  Widget build(BuildContext c) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      children: [
+        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
+        ),
+      ],
     ),
   );
 }
@@ -1766,58 +2158,116 @@ class _Compose extends State<Compose> {
     }
   }
 
+  Widget label(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 10, top: 6),
+    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+  );
+
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const Text('Đăng món đồ')),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Form(
-          key: form,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              OutlinedButton.icon(
-                onPressed: busy ? null : pick,
-                icon: const Icon(Icons.add_a_photo_outlined),
-                label: Text(photo == null ? 'Thêm ảnh thật' : 'Chọn ảnh khác'),
+    body: Form(
+      key: form,
+      child: PageBody(
+        maxWidth: 680,
+        children: [
+              const Text(
+                'Bán hoặc cho tặng món đồ',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
-              if (photo != null)
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Image.memory(photo!, height: 200),
+              const SizedBox(height: 6),
+              Text(
+                'Tin sẽ hiển thị cho hàng xóm ở ${widget.area}. Đăng tin hoàn toàn miễn phí.',
+                style: const TextStyle(color: muted),
+              ),
+              const SizedBox(height: 24),
+              label('Ảnh món đồ'),
+              InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: busy ? null : pick,
+                child: Container(
+                  height: photo == null ? 180 : 280,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: soft,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: photo == null ? const Color(0xFFD9DADC) : line),
+                  ),
+                  child: photo == null
+                      ? const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo_rounded, size: 40, color: brand),
+                            SizedBox(height: 10),
+                            Text('Thêm ảnh thật của món đồ', style: TextStyle(fontWeight: FontWeight.w700)),
+                            SizedBox(height: 4),
+                            Text('JPG hoặc PNG, tối đa 5 MB', style: TextStyle(color: muted, fontSize: 13)),
+                          ],
+                        )
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.memory(photo!, fit: BoxFit.cover),
+                            Positioned(
+                              right: 12,
+                              bottom: 12,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: ink,
+                                  minimumSize: const Size(0, 40),
+                                ),
+                                onPressed: busy ? null : pick,
+                                icon: const Icon(Icons.photo_library_outlined, size: 18),
+                                label: const Text('Đổi ảnh'),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 24),
+              label('Tên món đồ'),
               TextFormField(
                 controller: title,
                 maxLength: 160,
-                decoration: const InputDecoration(labelText: 'Tên món đồ'),
+                decoration: const InputDecoration(hintText: 'Ví dụ: Ghế gỗ còn mới, bàn học gấp gọn'),
                 validator: (v) =>
                     (v?.trim().length ?? 0) < 4 ? 'Nhập ít nhất 4 ký tự' : null,
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: const InputDecoration(labelText: 'Danh mục'),
-                items:
-                    [
-                          'Nội thất',
-                          'Điện tử',
-                          'Gia dụng',
-                          'Sách',
-                          'Thời trang',
-                          'Cho tặng',
-                        ]
-                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                        .toList(),
-                onChanged: (v) => category = v!,
+              const SizedBox(height: 8),
+              label('Danh mục'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ['Nội thất', 'Điện tử', 'Gia dụng', 'Sách', 'Thời trang', 'Cho tặng']
+                    .map(
+                      (v) => ChoiceChip(
+                        label: Text(v),
+                        selected: category == v,
+                        showCheckmark: false,
+                        selectedColor: ink,
+                        labelStyle: TextStyle(
+                          color: category == v ? Colors.white : ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (_) => setState(() {
+                          category = v;
+                          if (v == 'Cho tặng') price.text = '0';
+                        }),
+                      ),
+                    )
+                    .toList(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              label('Giá bán'),
               TextFormField(
                 controller: price,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
-                  labelText: 'Giá (đồng) · 0 nếu cho tặng',
+                  hintText: 'Nhập 0 nếu cho tặng',
+                  suffixText: 'đ',
                 ),
                 validator: (v) {
                   final n = int.tryParse(v ?? '');
@@ -1826,28 +2276,44 @@ class _Compose extends State<Compose> {
                       : null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              label('Mô tả'),
               TextFormField(
                 controller: description,
-                maxLines: 5,
+                maxLines: 6,
                 maxLength: 4000,
                 decoration: const InputDecoration(
-                  labelText: 'Tình trạng, khuyết điểm, nơi hẹn nhận',
+                  hintText:
+                      'Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…',
                 ),
                 validator: (v) => (v?.trim().length ?? 0) < 10
                     ? 'Mô tả ít nhất 10 ký tự'
                     : null,
               ),
-              const SizedBox(height: 16),
-              Text('Khu vực: ${widget.area} · không đăng địa chỉ nhà chi tiết'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, color: brand, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Khu vực: ${widget.area}. Không ghi địa chỉ nhà, số điện thoại hay số tài khoản trong tin.',
+                        style: const TextStyle(height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: busy ? null : submit,
-                child: Text(busy ? 'Đang đăng…' : 'Đăng miễn phí'),
+                child: Text(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
               ),
-            ],
-          ),
-        ),
+              const SizedBox(height: 24),
+        ],
       ),
     ),
   );
@@ -1966,126 +2432,236 @@ class _Detail extends State<Detail> {
     }
   }
 
+  Future<void> share() async {
+    final url = '${Uri.base.origin}/#/listing/${widget.item['id']}';
+    await Clipboard.setData(ClipboardData(text: url));
+    if (mounted) notice(context, 'Đã sao chép liên kết tin đăng.');
+  }
+
+  Widget action(Map<String, dynamic> x, bool mine) {
+    if (x['moderated'] == true) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEEEE),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'Tin đã bị quản trị ẩn. Vui lòng liên hệ quản trị viên.',
+          style: TextStyle(color: Color(0xFFC62828)),
+        ),
+      );
+    }
+    if (mine) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: x['status'],
+            decoration: const InputDecoration(labelText: 'Trạng thái tin'),
+            items: const [
+              DropdownMenuItem(value: 'available', child: Text('Đang bán')),
+              DropdownMenuItem(value: 'reserved', child: Text('Đang hẹn')),
+              DropdownMenuItem(value: 'sold', child: Text('Đã bán')),
+              DropdownMenuItem(value: 'hidden', child: Text('Ẩn tin')),
+            ],
+            onChanged: busy ? null : (v) => status(v!),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditListing(item: x)),
+              );
+              if (mounted) setState(() {});
+            },
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Chỉnh sửa tin'),
+          ),
+        ],
+      );
+    }
+    return FilledButton.icon(
+      onPressed: busy || x['status'] != 'available' ? null : contact,
+      icon: const Icon(Icons.chat_bubble_rounded, size: 20),
+      label: Text(
+        x['status'] == 'sold'
+            ? 'Món này đã bán'
+            : x['status'] == 'reserved'
+            ? 'Đang hẹn với người khác'
+            : busy
+            ? 'Đang mở…'
+            : 'Nhắn tin hỏi mua',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     final x = widget.item;
     final mine = db.auth.currentUser?.id == x['owner_id'];
+    final wide = isWide(c);
+    final seller = x['profiles']?['name'] ?? 'Thành viên';
+    final photo = ClipRRect(
+      borderRadius: BorderRadius.circular(wide ? 20 : 0),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: ListingImage(path: x['image_path'] ?? '', size: double.infinity),
+      ),
+    );
+    final sellerCard = InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MemberPage(id: x['owner_id'], name: seller),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Avatar(name: seller, size: 46),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(seller, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${x['area']} · chưa xác minh khu vực',
+                    style: const TextStyle(color: muted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const Text('Xem hồ sơ', style: TextStyle(color: brand, fontWeight: FontWeight.w700)),
+            const Icon(Icons.chevron_right, color: brand),
+          ],
+        ),
+      ),
+    );
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        sellerCard,
+        const SizedBox(height: 22),
+        Row(children: [StatusBadge(x['status']), const Spacer()]),
+        const SizedBox(height: 10),
+        Text(
+          x['title'] ?? '',
+          style: TextStyle(fontSize: wide ? 28 : 22, fontWeight: FontWeight.w800, height: 1.3),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          [x['category'], x['area'], timeAgo(x['created_at'])]
+              .where((s) => '${s ?? ''}'.isNotEmpty)
+              .join(' · '),
+          style: const TextStyle(color: muted),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          money(x['price']),
+          style: TextStyle(fontSize: wide ? 30 : 24, fontWeight: FontWeight.w900, color: ink),
+        ),
+        const SizedBox(height: 20),
+        const Divider(),
+        const SizedBox(height: 20),
+        Text(
+          x['description'] ?? '',
+          style: const TextStyle(fontSize: 16, height: 1.7, color: ink),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: soft, borderRadius: BorderRadius.circular(14)),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.verified_user_rounded, color: Color(0xFF2E9E6B), size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Gặp ở nơi công cộng, kiểm tra hàng trước khi trả tiền. '
+                  'Không chuyển khoản đặt cọc cho người lạ.',
+                  style: TextStyle(color: muted, height: 1.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (wide) ...[const SizedBox(height: 24), action(x, mine)],
+      ],
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chi tiết món đồ'),
         actions: [
-          IconButton(
-            tooltip: 'Báo cáo',
-            onPressed: report,
-            icon: const Icon(Icons.flag_outlined),
-          ),
+          IconButton(tooltip: 'Sao chép liên kết', onPressed: share, icon: const Icon(Icons.ios_share)),
+          if (!mine)
+            IconButton(tooltip: 'Báo cáo tin', onPressed: report, icon: const Icon(Icons.flag_outlined)),
+          const SizedBox(width: 8),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              Center(child: ListingImage(path: x['image_path'], size: 300)),
-              const SizedBox(height: 20),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MemberPage(
-                      id: x['owner_id'],
-                      name: x['profiles']?['name'] ?? 'Thành viên',
-                    ),
-                  ),
-                ),
-                title: Text(x['profiles']?['name'] ?? 'Thành viên'),
-                subtitle: Text('${x['area']} · Chưa xác minh khu vực'),
-              ),
-              const Divider(),
-              Text(
-                x['title'],
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                money(x['price']),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                x['description'],
-                style: const TextStyle(fontSize: 17, height: 1.6),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Gặp ở nơi công cộng, kiểm tra hàng trước khi thanh toán.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              if (x['moderated'] == true)
-                const Text(
-                  'Tin đã bị quản trị ẩn. Vui lòng liên hệ quản trị viên.',
-                  style: TextStyle(color: Colors.red),
-                ),
-              if (mine && x['moderated'] != true) ...[
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => EditListing(item: x)),
-                    );
-                    if (mounted) setState(() {});
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Chỉnh sửa tin'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: x['status'],
-                  decoration: const InputDecoration(labelText: 'Trạng thái'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'available',
-                      child: Text('Đang bán'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'reserved',
-                      child: Text('Đang hẹn'),
-                    ),
-                    DropdownMenuItem(value: 'sold', child: Text('Đã bán')),
-                    DropdownMenuItem(value: 'hidden', child: Text('Ẩn tin')),
+      body: wide
+          ? PageBody(
+              maxWidth: 1120,
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 11, child: photo),
+                    const SizedBox(width: 40),
+                    Expanded(flex: 10, child: info),
                   ],
-                  onChanged: busy ? null : (v) => status(v!),
                 ),
-              ] else
-                FilledButton.icon(
-                  onPressed: busy || x['status'] != 'available'
-                      ? null
-                      : contact,
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: Text(
-                    x['status'] == 'sold'
-                        ? 'Đã bán'
-                        : x['status'] == 'reserved'
-                        ? 'Đang hẹn'
-                        : busy
-                        ? 'Đang mở…'
-                        : 'Nhắn tin hỏi mua',
-                  ),
+              ],
+            )
+          : ListView(
+              children: [
+                photo,
+                Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), child: info),
+              ],
+            ),
+      bottomNavigationBar: wide
+          ? null
+          : SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: line)),
                 ),
-            ],
-          ),
-        ),
-      ),
+                child: mine || x['moderated'] == true
+                    ? action(x, mine)
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  money(x['price']),
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                                ),
+                                const Text('Giá người bán đưa ra', style: TextStyle(color: muted, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          action(x, mine),
+                        ],
+                      ),
+              ),
+            ),
     );
   }
 }
@@ -2161,86 +2737,177 @@ class _Chat extends State<Chat> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.thread['listings']?['title'] ?? 'Trò chuyện'),
-      actions: [
-        IconButton(
-          tooltip: 'Lịch hẹn',
-          icon: const Icon(Icons.event_outlined),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MeetingPage(thread: widget.thread),
-            ),
-          ),
-        ),
-      ],
-    ),
-    body: Column(
-      children: [
-        ListTile(
-          leading: ListingImage(
-            path: widget.thread['listings']['image_path'],
-            size: 48,
-          ),
-          title: Text(money(widget.thread['listings']['price'])),
-          subtitle: const Text('Thống nhất địa điểm và giờ gặp trong tin nhắn'),
-        ),
-        if (error != null)
-          Text(error!, style: const TextStyle(color: Colors.red)),
-        Expanded(
-          child: ListView(
-            reverse: true,
-            padding: const EdgeInsets.all(20),
-            children: messages
-                .map(
-                  (m) => Align(
-                    alignment: m['sender_id'] == db.auth.currentUser?.id
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: m['sender_id'] == db.auth.currentUser?.id
-                            ? const Color(0xFFFFE5D5)
-                            : const Color(0xFFF1F2F3),
-                        borderRadius: BorderRadius.circular(16),
+    appBar: AppBar(title: const Text('Trò chuyện')),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 820),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: line)),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: ListingImage(
+                      path: widget.thread['listings']?['image_path'] ?? '',
+                      size: 52,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.thread['listings']?['title'] ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          money(widget.thread['listings']?['price'] ?? 0),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MeetingPage(thread: widget.thread),
                       ),
-                      child: Text(m['body']),
                     ),
+                    icon: const Icon(Icons.event_available_outlined, size: 18),
+                    label: const Text('Hẹn gặp'),
                   ),
-                )
-                .toList(),
-          ),
-        ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: input,
-                    maxLength: 2000,
-                    maxLines: 3,
-                    minLines: 1,
-                    decoration: const InputDecoration(
-                      hintText: 'Nhắn người hàng xóm…',
-                      counterText: '',
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: sending ? null : send,
-                  icon: const Icon(Icons.send, color: brand),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(error!, style: const TextStyle(color: Color(0xFFC62828))),
+              ),
+            Expanded(
+              child: messages.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          'Chào người bán, hỏi tình trạng món đồ và hẹn giờ gặp nhé.\n'
+                          'Đừng chuyển khoản trước khi xem hàng.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: muted, height: 1.6),
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      reverse: true,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      children: messages.map((m) {
+                        final me = m['sender_id'] == db.auth.currentUser?.id;
+                        return Align(
+                          alignment: me ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Column(
+                            crossAxisAlignment:
+                                me ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                constraints: const BoxConstraints(maxWidth: 460),
+                                margin: const EdgeInsets.only(top: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: me ? brand : soft,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(18),
+                                    topRight: const Radius.circular(18),
+                                    bottomLeft: Radius.circular(me ? 18 : 4),
+                                    bottomRight: Radius.circular(me ? 4 : 18),
+                                  ),
+                                ),
+                                child: Text(
+                                  m['body'] ?? '',
+                                  style: TextStyle(
+                                    color: me ? Colors.white : ink,
+                                    fontSize: 15,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
+                                child: Text(
+                                  timeAgo(m['created_at']),
+                                  style: const TextStyle(color: muted, fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: line)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: input,
+                        maxLength: 2000,
+                        maxLines: 4,
+                        minLines: 1,
+                        onSubmitted: (_) => send(),
+                        decoration: InputDecoration(
+                          hintText: 'Nhắn người hàng xóm…',
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(color: brand),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: brand,
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        tooltip: 'Gửi',
+                        onPressed: sending ? null : send,
+                        icon: const Icon(Icons.send_rounded, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 }
