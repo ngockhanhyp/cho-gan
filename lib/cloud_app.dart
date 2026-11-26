@@ -15,6 +15,7 @@ import 'social_auth.dart';
 part 'trust.dart';
 part 'community.dart';
 part 'listing_edit.dart';
+part 'consignment.dart';
 
 const brand = Color(0xFFFF6F32);
 final db = Supabase.instance.client;
@@ -966,6 +967,7 @@ class _Home extends State<Home> {
 
   Widget services(bool wide) {
     final items = <(String, String, VoidCallback)>[
+      ('shop', 'Ký gửi tại Passy', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsignmentPage()))),
       ('shop', 'Mua bán đồ cũ', () => browse('Tất cả')),
       ('gift', 'Cho tặng', () => browse('Cho tặng')),
       ('couch', 'Nội thất', () => browse('Nội thất')),
