@@ -95,6 +95,15 @@ Người dùng đã yêu cầu phát hành Google + email. Google Audience đã 
 
 Meta Business Portfolio Passy đã tạo và nối với app sau khi người dùng đồng ý, ID `1187437777054401`. Luồng xác minh tại Việt Nam hiện yêu cầu loại hình doanh nghiệp; chưa khai loại hình hay gửi giấy tờ vì chủ dự án là cá nhân chưa đăng ký kinh doanh. Facebook chưa phát hành công khai.
 
+### Phát hành Google + email — 27/11/2026
+
+- Commit ứng dụng `6b33832` đã đưa lên `main` theo yêu cầu người dùng. GitHub Pages run `45887137224` build/deploy thành công trên `https://passy.id.vn/`.
+- Xác nhận trực tiếp màn đăng nhập website chính chỉ có Google và email/mật khẩu; Facebook ẩn mặc định.
+- Kiểm thử Google trên tên miền thật thành công: chọn tài khoản chủ dự án → callback → trang Của tôi hiển thị tên và các tin đăng hiện có; URL đã dọn về `/`. Chưa kiểm tài khoản Google thứ hai không nằm trong danh sách thử trước đó.
+- Public Auth settings đã kiểm tra lại thành công: `google=true`, `facebook=true`; Facebook chỉ giữ cấu hình backend, chưa mở nút công khai.
+- Analyze sạch, build web release thành công, 19 tests qua; sau khi thêm khẳng định Facebook ẩn mặc định, 8 tests đăng nhập chạy lại đều qua.
+- Rollback mã ứng dụng về phiên bản trước phát hành: `2cb493a`; cấu hình Google Audience là thay đổi quản trị riêng, không tự hoàn tác theo Git.
+
 ## Tài liệu chính thức
 
 - https://supabase.com/docs/guides/auth/social-sign-in/auth-google
