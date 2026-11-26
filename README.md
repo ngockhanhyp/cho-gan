@@ -57,5 +57,12 @@ Quản trị dùng bảng admin_emails riêng với RLS. Email cấu hình phả
 - Chưa có analytics/monitoring vận hành đầy đủ, chính sách pháp lý hoàn chỉnh hay kiểm định an toàn sản phẩm thương mại.
 - `passy.id.vn`: tạo CNAME `passy` → `ngockhanhyp.github.io`; file `web/CNAME` chứa `passy.id.vn`; base href build là `/`; cập nhật Supabase Auth Site URL và Redirect allowlist có `https://passy.id.vn/`.
 
+## Thiết lập tên miền passy.id.vn (việc cần làm ngoài mã nguồn)
+1. DNS tại nhà cung cấp .id.vn: bản ghi `CNAME` `passy` → `ngockhanhyp.github.io` (nếu dùng apex `passy.id.vn` thì tạo 4 bản ghi A: 185.199.108.153, .109.153, .110.153, .111.153).
+2. GitHub repo → Settings → Pages: Source = GitHub Actions, Custom domain = `passy.id.vn`, bật Enforce HTTPS sau khi chứng chỉ cấp xong.
+3. Supabase → Authentication → URL Configuration: Site URL `https://passy.id.vn/`, Redirect URLs thêm `https://passy.id.vn/**`.
+4. Merge nhánh vào `main` để workflow build và deploy.
+Trang tĩnh đã có sẵn: `/privacy.html`, `/terms.html`, `/robots.txt`, `/sitemap.xml`.
+
 ## Benchmark 당근
 Bám theo cốt lõi địa phương, giao dịch trực tiếp miễn phí, tin dạng danh sách ảnh/giá, chat gắn món, lịch hẹn và phản hồi. Sử dụng tên/biểu tượng/mã nguồn riêng. Chưa đạt tương đương toàn bộ tính năng, chất lượng và quy mô của 당근.
