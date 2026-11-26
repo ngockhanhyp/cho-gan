@@ -39,6 +39,14 @@ jobs:
       - name: Build web app
         run: flutter build web --release --base-href "${{ vars.WEB_BASE_HREF || '/cho-gan/' }}"
 
+      - name: Version JS files so browsers load each new deploy
+        run: |
+          v="${GITHUB_SHA::8}"
+          mv build/web/main.dart.js "build/web/main.$v.dart.js"
+          sed -i "s/main\.dart\.js/main.$v.dart.js/g" build/web/flutter_bootstrap.js
+          sed -i "s/flutter_bootstrap\.js/flutter_bootstrap.js?v=$v/" build/web/index.html
+          grep -q "main.$v.dart.js" build/web/flutter_bootstrap.js
+
       - name: Add Flutter route fallback
         run: |
           cp build/web/index.html build/web/404.html
