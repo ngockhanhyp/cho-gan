@@ -73,8 +73,13 @@ const categoryIcons = {
   'Gia dụng': 'pot',
   'Sách': 'books',
   'Thời trang': 'tshirt',
-  'Cho tặng': 'gift',
 };
+
+bool listingIsGift(Map<String, dynamic> listing) =>
+    listing['price'] == 0 || listing['category'] == 'Cho tặng';
+
+String listingProductCategory(Map<String, dynamic> listing) =>
+    listing['category'] == 'Cho tặng' ? 'Đồ cũ' : '${listing['category'] ?? ''}';
 
 bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 900;
 
@@ -398,6 +403,7 @@ class Home extends StatefulWidget {
 class _Home extends State<Home> {
   int page = 0;
   String area = 'Cầu Giấy', category = 'Tất cả', search = '';
+  String transactionFilter = 'Tất cả';
   List<Map<String, dynamic>> listings = [], threads = [];
   Set<String> favorites = {};
   bool loading = true;
@@ -411,7 +417,6 @@ class _Home extends State<Home> {
     'Gia dụng',
     'Sách',
     'Thời trang',
-    'Cho tặng',
   ];
   @override
   void initState() {
@@ -554,7 +559,13 @@ class _Home extends State<Home> {
 
   void browse(String cat) => setState(() {
     page = 0;
-    category = cat;
+    if (cat == 'Cho tặng') {
+      category = 'Tất cả';
+      transactionFilter = 'Cho tặng';
+    } else {
+      category = cat;
+      transactionFilter = 'Tất cả';
+    }
   });
 
   void safetyTips() => showDialog(
@@ -780,6 +791,10 @@ class _Home extends State<Home> {
           (x) =>
               (area == 'Tất cả Hà Nội' || x['area'] == area) &&
               (category == 'Tất cả' || x['category'] == category) &&
+              (transactionFilter == 'Tất cả' ||
+                  (transactionFilter == 'Cho tặng'
+                      ? listingIsGift(x)
+                      : !listingIsGift(x))) &&
               x['title'].toString().toLowerCase().contains(
                 search.toLowerCase(),
               ) &&
@@ -1058,6 +1073,15 @@ class _Home extends State<Home> {
         ],
       ),
       const SizedBox(height: 12),
+      Wrap(
+        spacing: 8,
+        children: ['Tất cả', 'Bán', 'Cho tặng'].map((mode) => ChoiceChip(
+          label: Text(mode),
+          selected: transactionFilter == mode,
+          onSelected: (_) => setState(() => transactionFilter = mode),
+        )).toList(),
+      ),
+      const SizedBox(height: 12),
       SizedBox(
         height: 40,
         child: ListView(
@@ -1080,7 +1104,10 @@ class _Home extends State<Home> {
                       side: BorderSide(color: Color(0xFFE5E5E5)),
                     ),
                     backgroundColor: Colors.white,
-                    onSelected: (_) => setState(() => category = v),
+                    onSelected: (_) => setState(() {
+                      category = v;
+                      transactionFilter = 'Tất cả';
+                    }),
                   ),
                 ),
               )
@@ -2129,6 +2156,7 @@ class _Compose extends State<Compose> {
   final form = GlobalKey<FormState>();
   String category = 'Gia dụng';
   String condition = 'Đã qua sử dụng - tốt';
+  String transactionMode = 'Bán';
   Uint8List? photo;
   String mime = 'image/jpeg';
   bool busy = false;
@@ -2195,7 +2223,7 @@ class _Compose extends State<Compose> {
         'owner_id': uid,
         'title': title.text.trim(),
         'description': 'Tình trạng: $condition\n\n${description.text.trim()}',
-        'price': int.parse(price.text),
+        'price': transactionMode == 'Cho tặng' ? 0 : int.parse(price.text),
         'category': category,
         'area': widget.area,
         'image_path': path,
@@ -2291,6 +2319,23 @@ class _Compose extends State<Compose> {
                     (v?.trim().length ?? 0) < 4 ? 'Nhập ít nhất 4 ký tự' : null,
               ),
               const SizedBox(height: 8),
+              label('Hình thức'),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'Bán', label: Text('Bán'), icon: Icon(Icons.sell_outlined)),
+                  ButtonSegment(value: 'Cho tặng', label: Text('Cho tặng'), icon: Icon(Icons.volunteer_activism_outlined)),
+                ],
+                selected: {transactionMode},
+                onSelectionChanged: busy ? null : (selection) => setState(() {
+                  transactionMode = selection.first;
+                  if (transactionMode == 'Cho tặng') {
+                    price.text = '0';
+                  } else if (price.text == '0') {
+                    price.clear();
+                  }
+                }),
+              ),
+              const SizedBox(height: 20),
               label('Danh mục'),
               Wrap(
                 spacing: 8,
@@ -2306,10 +2351,7 @@ class _Compose extends State<Compose> {
                           color: category == v ? Colors.white : ink,
                           fontWeight: FontWeight.w600,
                         ),
-                        onSelected: (_) => setState(() {
-                          category = v;
-                          if (v == 'Cho tặng') price.text = '0';
-                        }),
+                        onSelected: (_) => setState(() => category = v),
                       ),
                     )
                     .toList(),
@@ -2332,22 +2374,33 @@ class _Compose extends State<Compose> {
                 },
               ),
               const SizedBox(height: 24),
-              label('Giá bán'),
-              TextFormField(
-                controller: price,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  hintText: 'Nhập 0 nếu cho tặng',
-                  suffixText: 'đ',
+              if (transactionMode == 'Bán') ...[
+                label('Giá bán'),
+                TextFormField(
+                  controller: price,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    hintText: 'Nhập giá mong muốn',
+                    suffixText: 'đ',
+                  ),
+                  onChanged: (value) {
+                    if (value == '0') {
+                      setState(() => transactionMode = 'Cho tặng');
+                    }
+                  },
+                  validator: (v) {
+                    final n = int.tryParse(v ?? '');
+                    return n == null || n <= 0 || n > 100000000000
+                        ? 'Nhập giá hợp lệ hoặc chọn Cho tặng'
+                        : null;
+                  },
                 ),
-                validator: (v) {
-                  final n = int.tryParse(v ?? '');
-                  return n == null || n < 0 || n > 100000000000
-                      ? 'Nhập giá hợp lệ'
-                      : null;
-                },
-              ),
+              ] else
+                const Padding(
+                  padding: EdgeInsets.only(top: 18),
+                  child: Text('Món này sẽ được đăng miễn phí.', style: TextStyle(color: muted)),
+                ),
               const SizedBox(height: 24),
               label('Mô tả'),
               TextFormField(
@@ -2633,7 +2686,7 @@ class _Detail extends State<Detail> {
         ),
         const SizedBox(height: 6),
         Text(
-          [x['category'], x['area'], timeAgo(x['created_at'])]
+          [listingProductCategory(x), x['area'], timeAgo(x['created_at'])]
               .where((s) => '${s ?? ''}'.isNotEmpty)
               .join(' · '),
           style: const TextStyle(color: muted),
