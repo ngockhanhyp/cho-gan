@@ -1,5 +1,73 @@
 part of 'cloud_app.dart';
 
+class CommunityReplies extends StatefulWidget {
+  const CommunityReplies({super.key, required this.post});
+  final Map<String, dynamic> post;
+
+  @override
+  State<CommunityReplies> createState() => _CommunityRepliesState();
+}
+
+class _CommunityRepliesState extends State<CommunityReplies> {
+  final input = TextEditingController();
+  List<Map<String, dynamic>> replies = [];
+  bool busy = false;
+  String? error;
+
+  @override
+  void initState() { super.initState(); load(); }
+
+  @override
+  void dispose() { input.dispose(); super.dispose(); }
+
+  Future<void> load() async {
+    try {
+      final rows = await db.from('community_replies').select('*,profiles!author_id(name)')
+          .eq('post_id', widget.post['id']).order('created_at').limit(200);
+      if (mounted) setState(() { replies = rows; error = null; });
+    } catch (e) {
+      if (mounted) setState(() => error = friendly(e));
+    }
+  }
+
+  Future<void> send() async {
+    final uid = db.auth.currentUser?.id;
+    final body = input.text.trim();
+    if (busy || uid == null || body.isEmpty) return;
+    setState(() => busy = true);
+    try {
+      await db.from('community_replies').insert({
+        'post_id': widget.post['id'], 'author_id': uid, 'body': body,
+      });
+      if (!mounted) return;
+      if (input.text.trim() == body) input.clear();
+      await load();
+    } catch (e) {
+      if (mounted) notice(context, friendly(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Thảo luận'), actions: [
+      IconButton(onPressed: load, icon: const Icon(Icons.refresh), tooltip: 'Tải lại'),
+    ]),
+    body: PageBody(maxWidth: 720, children: [
+      Card(child: ListTile(title: Text(widget.post['body'] ?? ''))),
+      const SizedBox(height: 16),
+      const SectionTitle('Bình luận'),
+      if (error != null) Text(error!),
+      for (final reply in replies)
+        ListTile(title: Text(reply['profiles']?['name'] ?? 'Cư dân'), subtitle: Text(reply['body'] ?? '')),
+      TextField(controller: input, maxLength: 1000, maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Viết bình luận')),
+      FilledButton.icon(onPressed: busy ? null : send, icon: const Icon(Icons.send_outlined), label: const Text('Gửi bình luận')),
+    ]),
+  );
+}
+
 class CommunitiesPage extends StatefulWidget {
   const CommunitiesPage({super.key});
   @override
@@ -140,12 +208,12 @@ class _CommunitiesPage extends State<CommunitiesPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Chuyện quanh mình',
+                    'Cộng đồng quanh bạn',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Hỏi đáp, chia sẻ tin hữu ích với đồng nghiệp, bạn bè và hàng xóm. '
+                    'Kết nối với cư dân cùng tòa hoặc cùng khu: hỏi đáp, thông báo, nhờ giúp đỡ và rủ nhau gặp mặt. '
                     'Bài viết trong cộng đồng chỉ dành cho thành viên.',
                     style: TextStyle(color: muted, height: 1.6),
                   ),
@@ -153,7 +221,7 @@ class _CommunitiesPage extends State<CommunitiesPage> {
               ),
             ),
             SizedBox(width: 16),
-            Icon(Icons.groups_rounded, size: 64, color: Color(0xFF2E9E6B)),
+            Icon(Icons.apartment_rounded, size: 56, color: Color(0xFF2E9E6B)),
           ],
         ),
       ),
@@ -192,7 +260,7 @@ class _CommunitiesPage extends State<CommunitiesPage> {
         (g) => Card(
           child: ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: Avatar(name: '${g['name']}', size: 48),
+            leading: g['community_type'] == 'apartment' ? const CircleAvatar(child: Icon(Icons.apartment)) : Avatar(name: '${g['name']}', size: 48),
             title: Text(g['name']),
             subtitle: Text(g['community_type'] == 'apartment'
                 ? '${g['building_location'] ?? ''} · Nhóm riêng bằng mã mời, chưa xác minh cư trú'
@@ -220,6 +288,13 @@ class _CommunityBoard extends State<CommunityBoard> {
   List<Map<String, dynamic>> posts = [];
   final input = TextEditingController();
   bool busy = false;
+  String topic = 'discussion', filter = 'all';
+  static const topics = {
+    'discussion': 'Hỏi đáp',
+    'notice': 'Thông báo',
+    'help': 'Nhờ giúp đỡ',
+    'meetup': 'Rủ gặp mặt',
+  };
   String? error;
   @override
   void initState() {
@@ -263,6 +338,7 @@ class _CommunityBoard extends State<CommunityBoard> {
         'community_id': widget.group['id'],
         'author_id': db.auth.currentUser!.id,
         'body': input.text.trim(),
+        'topic': topic,
       });
       input.clear();
       await load();
@@ -313,6 +389,13 @@ class _CommunityBoard extends State<CommunityBoard> {
               ],
             ),
             const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              initialValue: topic,
+              decoration: const InputDecoration(labelText: 'Chủ đề bài viết'),
+              items: topics.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(),
+              onChanged: busy ? null : (value) => setState(() => topic = value ?? 'discussion'),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: input,
               maxLines: 4,
@@ -331,13 +414,22 @@ class _CommunityBoard extends State<CommunityBoard> {
             ),
             const SizedBox(height: 24),
             if (error != null) Text(error!),
-            if (posts.isEmpty)
+            Wrap(
+              spacing: 8,
+              children: {'all': 'Tất cả', ...topics}.entries.map((entry) => ChoiceChip(
+                label: Text(entry.value),
+                selected: filter == entry.key,
+                onSelected: (_) => setState(() => filter = entry.key),
+              )).toList(),
+            ),
+            const SizedBox(height: 12),
+            if (!posts.any((post) => filter == 'all' || (post['topic'] ?? 'discussion') == filter))
               const EmptyState(
                 icon: Icons.waving_hand_outlined,
                 title: 'Chưa có bài viết',
                 text: 'Hãy chào cộng đồng của bạn!',
               ),
-            ...posts.map(
+            ...posts.where((post) => filter == 'all' || (post['topic'] ?? 'discussion') == filter).map(
               (p) => Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -358,9 +450,15 @@ class _CommunityBoard extends State<CommunityBoard> {
                         ],
                       ),
                       const SizedBox(height: 12),
+                      Text(topics[p['topic']] ?? 'Hỏi đáp', style: const TextStyle(fontWeight: FontWeight.w700, color: muted)),
                       Text(
                         p['body'],
                         style: const TextStyle(fontSize: 16, height: 1.5),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => CommunityReplies(post: p))),
+                        icon: const Icon(Icons.comment_outlined),
+                        label: const Text('Bình luận'),
                       ),
                     ],
                   ),

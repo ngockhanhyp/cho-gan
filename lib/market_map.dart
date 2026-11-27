@@ -1,7 +1,13 @@
 part of 'cloud_app.dart';
 
 class MarketMapPage extends StatefulWidget {
-  const MarketMapPage({super.key});
+  const MarketMapPage({
+    super.key, required this.center, required this.areaLabel, required this.nearby,
+  });
+
+  final LatLng center;
+  final String areaLabel;
+  final List<Map<String, dynamic>> nearby;
   @override
   State<MarketMapPage> createState() => _MarketMapPageState();
 }
@@ -168,13 +174,40 @@ class _MarketMapPageState extends State<MarketMapPage> {
     );
   }
 
+  void showNearby() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: ListView(
+          children: [
+            ListTile(title: Text('Tin đang bán · ${widget.areaLabel}')),
+            if (widget.nearby.isEmpty)
+              const ListTile(subtitle: Text('Chưa có tin đang bán ở khu vực này.')),
+            for (final item in widget.nearby)
+              ListTile(
+                leading: ListingImage(path: item['image_path'] ?? '', size: 48),
+                title: Text(item['title'] ?? ''),
+                subtitle: Text('${money(item['price'])} · ${item['area']}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => Detail(item: item)));
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = db.auth.currentUser?.id;
     final sharing = uid != null && pins.any((p) => p['owner_id'] == uid);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bản đồ quanh Hà Nội'),
+        title: Text('Bản đồ · ${widget.areaLabel}'),
         actions: [
           IconButton(
             onPressed: load,
@@ -203,8 +236,13 @@ class _MarketMapPageState extends State<MarketMapPage> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    FilledButton.icon(
-                      onPressed: saving ? null : shareApproximateLocation,
+                    FilledButton.tonalIcon(
+                      onPressed: showNearby,
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: Text('Tin đang bán (${widget.nearby.length})'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: saving || error != null ? null : shareApproximateLocation,
                       icon: saving
                           ? const SizedBox(
                               width: 16,
@@ -229,32 +267,19 @@ class _MarketMapPageState extends State<MarketMapPage> {
               ],
             ),
           ),
+          if (error != null) const Padding(padding: EdgeInsets.all(8), child: Text('Chưa tải được vị trí người bán. Bạn vẫn có thể mở danh sách tin theo khu vực.')),
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : error != null
-                ? Center(child: Text(error!))
                 : FlutterMap(
-                    options: const MapOptions(
-                      initialCenter: LatLng(21.0285, 105.8542),
-                      initialZoom: 10.5,
+                    options: MapOptions(
+                      initialCenter: widget.center,
+                      initialZoom: widget.areaLabel == 'Tất cả Hà Nội' ? 10.5 : 13,
                       minZoom: 8,
                       maxZoom: 18,
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate: const String.fromEnvironment(
-                          'PASSY_MAP_TILE_URL',
-                          defaultValue:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        ),
-                        userAgentPackageName: 'vn.id.passy',
-                        tileProvider: NetworkTileProvider(
-                          headers: const {
-                            'User-Agent': 'Passy/1.0 (+https://passy.id.vn)',
-                          },
-                        ),
-                      ),
+                      marketTiles(),
                       RichAttributionWidget(
                         attributions: [
                           TextSourceAttribution(

@@ -6,7 +6,9 @@ create table public.seller_map_locations (
   owner_id uuid primary key references public.profiles(id) on delete cascade,
   latitude double precision not null check(latitude between 20.4 and 21.8),
   longitude double precision not null check(longitude between 105.0 and 106.0),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (latitude = round(latitude::numeric, 2)::double precision),
+  check (longitude = round(longitude::numeric, 2)::double precision)
 );
 alter table public.seller_map_locations enable row level security;
 grant select on public.seller_map_locations to anon, authenticated;

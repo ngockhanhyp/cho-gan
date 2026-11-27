@@ -12,6 +12,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'location_picker.dart';
 import 'social_auth.dart';
 
@@ -20,13 +22,15 @@ part 'community.dart';
 part 'listing_edit.dart';
 part 'market_map.dart';
 part 'consignment.dart';
+part 'market_home.dart';
+part 'inbox_updates.dart';
 
 const brand = Color(0xFFFF6F32);
 final db = Supabase.instance.client;
 String? authRedirectUrl() =>
     kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : null;
 String money(dynamic value) => value == 0
-    ? 'Cho tặng'
+    ? 'Quyên góp'
     : '${value.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
 String friendly(Object e) {
   if (e is AuthException) {
@@ -409,6 +413,9 @@ class _Home extends State<Home> {
   int page = 0;
   String area = 'Cầu Giấy', category = 'Tất cả', search = '';
   String transactionFilter = 'Tất cả';
+  bool showAllDistricts = false;
+  final listingAnchor = GlobalKey();
+  late final inboxUpdates = InboxUpdates(this);
   List<Map<String, dynamic>> listings = [], threads = [];
   Set<String> favorites = {};
   bool loading = true;
@@ -427,6 +434,7 @@ class _Home extends State<Home> {
   void initState() {
     super.initState();
     refresh();
+    inboxUpdates.start();
     if (widget.authMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) notice(context, widget.authMessage!);
@@ -455,6 +463,7 @@ class _Home extends State<Home> {
   @override
   void dispose() {
     auth?.cancel();
+    inboxUpdates.dispose();
     super.dispose();
   }
 
@@ -562,16 +571,20 @@ class _Home extends State<Home> {
     refresh();
   }
 
-  void browse(String cat) => setState(() {
-    page = 0;
-    if (cat == 'Cho tặng') {
-      category = 'Tất cả';
-      transactionFilter = 'Cho tặng';
-    } else {
-      category = cat;
-      transactionFilter = 'Tất cả';
-    }
-  });
+  void browse(String cat) {
+    setState(() {
+      page = 0;
+      search = '';
+      category = cat == 'Quyên góp' ? 'Tất cả' : cat;
+      transactionFilter = cat == 'Quyên góp' ? 'Quyên góp' : 'Tất cả';
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = listingAnchor.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 250));
+      }
+    });
+  }
 
   void safetyTips() => showDialog(
     context: context,
@@ -641,20 +654,20 @@ class _Home extends State<Home> {
               onDestinationSelected: go,
               backgroundColor: Colors.white,
               indicatorColor: const Color(0xFFFFE5D5),
-              destinations: const [
+              destinations: [
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
                   label: 'Gần bạn',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.people_outline),
-                  selectedIcon: Icon(Icons.people),
-                  label: 'Khu phố',
+                  icon: Icon(Icons.apartment_outlined),
+                  selectedIcon: Icon(Icons.apartment),
+                  label: 'Cộng đồng',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  selectedIcon: Icon(Icons.chat_bubble),
+                  icon: Badge(isLabelVisible: inboxUpdates.unreadCount > 0, label: Text('${inboxUpdates.unreadCount}'), child: const Icon(Icons.chat_bubble_outline)),
+                  selectedIcon: Badge(isLabelVisible: inboxUpdates.unreadCount > 0, label: Text('${inboxUpdates.unreadCount}'), child: const Icon(Icons.chat_bubble)),
                   label: 'Trò chuyện',
                 ),
                 NavigationDestination(
@@ -750,8 +763,8 @@ class _Home extends State<Home> {
                       const SizedBox(width: 12),
                       areaButton(),
                       const SizedBox(width: 8),
-                      navLink('Khu phố', 1),
-                      navLink('Trò chuyện', 2),
+                      navLink('Cộng đồng', 1),
+                      navLink(inboxUpdates.unreadCount == 0 ? 'Trò chuyện' : 'Trò chuyện (${inboxUpdates.unreadCount})', 2),
                       navLink(
                         db.auth.currentUser == null ? 'Đăng nhập' : 'Của tôi',
                         3,
@@ -797,7 +810,7 @@ class _Home extends State<Home> {
               (area == 'Tất cả Hà Nội' || x['area'] == area) &&
               (category == 'Tất cả' || x['category'] == category) &&
               (transactionFilter == 'Tất cả' ||
-                  (transactionFilter == 'Cho tặng'
+                  (transactionFilter == 'Quyên góp'
                       ? listingIsGift(x)
                       : !listingIsGift(x))) &&
               x['title'].toString().toLowerCase().contains(
@@ -833,10 +846,12 @@ class _Home extends State<Home> {
                         children: [
                           Expanded(child: listingSection(shown, wide)),
                           const SizedBox(width: 32),
-                          SizedBox(width: 300, child: sidebar()),
+                          SizedBox(width: 300, child: Column(children: [nearbyMap(), sidebar()])),
                         ],
                       )
                     else ...[
+                      nearbyMap(),
+                      const SizedBox(height: 20),
                       listingSection(shown, wide),
                       const SizedBox(height: 32),
                       sidebar(),
@@ -985,16 +1000,11 @@ class _Home extends State<Home> {
   );
 
   Widget services(bool wide) {
-    final items = <(String, String, VoidCallback)>[
-      ('shop', 'Ký gửi tại Passy', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsignmentPage()))),
-      ('shop', 'Mua bán đồ cũ', () => browse('Tất cả')),
-      ('gift', 'Cho tặng', () => browse('Cho tặng')),
-      ('couch', 'Nội thất', () => browse('Nội thất')),
-      ('laptop', 'Điện tử', () => browse('Điện tử')),
-      ('houses', 'Khu phố', () => go(1)),
-      ('chat', 'Trò chuyện', () => go(2)),
-      ('heart', 'Đồ đã lưu', () => go(3)),
-      ('shield', 'Giao dịch an toàn', safetyTips),
+    final items = <(IconData, String, VoidCallback)>[
+      (Icons.storefront_outlined, 'Mua bán đồ cũ', () => browse('Tất cả')),
+      (Icons.inventory_2_outlined, 'Ký gửi tại Passy', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsignmentPage()))),
+      (Icons.volunteer_activism_outlined, 'Quyên góp', () => browse('Quyên góp')),
+      (Icons.apartment_outlined, 'Cộng đồng', () => go(1)),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1007,14 +1017,14 @@ class _Home extends State<Home> {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: wide ? 8 : 4,
+          crossAxisCount: 4,
           mainAxisSpacing: wide ? 12 : 8,
           crossAxisSpacing: wide ? 12 : 8,
-          childAspectRatio: wide ? 0.92 : 0.78,
+          childAspectRatio: wide ? 2.35 : 0.8,
           children: items.map((e) {
             final (icon, label, onTap) = e;
             return Material(
-              color: wide ? soft : Colors.transparent,
+              color: icon == Icons.inventory_2_outlined ? brandSoft : soft,
               borderRadius: BorderRadius.circular(18),
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
@@ -1027,10 +1037,10 @@ class _Home extends State<Home> {
                       height: wide ? 64 : 58,
                       padding: EdgeInsets.all(wide ? 6 : 8),
                       decoration: BoxDecoration(
-                        color: wide ? Colors.transparent : soft,
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: emoji(icon, wide ? 52 : 42),
+                      child: Icon(icon, size: wide ? 34 : 28, color: brand),
                     ),
                     SizedBox(height: wide ? 10 : 6),
                     Padding(
@@ -1057,6 +1067,7 @@ class _Home extends State<Home> {
   }
 
   Widget listingSection(List<Map<String, dynamic>> shown, bool wide) => Column(
+    key: listingAnchor,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Row(
@@ -1066,6 +1077,8 @@ class _Home extends State<Home> {
             child: Text(
               search.isNotEmpty
                   ? 'Kết quả cho “$search”'
+                  : transactionFilter == 'Quyên góp'
+                  ? 'Đồ quyên góp quanh bạn'
                   : area == 'Tất cả Hà Nội'
                   ? 'Đồ cũ mới đăng ở Hà Nội'
                   : 'Đồ cũ mới đăng ở $area',
@@ -1081,25 +1094,13 @@ class _Home extends State<Home> {
       const SizedBox(height: 12),
       Wrap(
         spacing: 8,
-        children: ['Tất cả', 'Bán', 'Cho tặng'].map((mode) => ChoiceChip(
+        children: ['Tất cả', 'Bán', 'Quyên góp'].map((mode) => ChoiceChip(
           label: Text(mode),
           selected: transactionFilter == mode,
           onSelected: (_) => setState(() => transactionFilter = mode),
         )).toList(),
       ),
       const SizedBox(height: 12),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MarketMapPage()),
-          ),
-          icon: const Icon(Icons.map_outlined),
-          label: const Text('Xem trên bản đồ'),
-        ),
-      ),
-      const SizedBox(height: 8),
       SizedBox(
         height: 40,
         child: ListView(
@@ -1306,62 +1307,9 @@ class _Home extends State<Home> {
   );
 
   Widget sidebar() {
-    final live = listings.where((x) => x['status'] == 'available').toList();
     return Column(
       children: [
-        sideCard(
-          'Khu vực sôi động',
-          Column(
-            children: areas.where((a) => a != 'Tất cả Hà Nội').map((a) {
-              final n = live.where((x) => x['area'] == a).length;
-              return InkWell(
-                onTap: () => setState(() => area = a),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 18,
-                        color: a == area ? brand : Colors.black38,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          a,
-                          style: TextStyle(
-                            fontWeight: a == area ? FontWeight.w800 : FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Text('$n món', style: const TextStyle(color: Colors.black54)),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        sideCard(
-          'Danh mục',
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: categories
-                .where((v) => v != 'Tất cả')
-                .map(
-                  (v) => ActionChip(
-                    avatar: emoji(categoryIcons[v] ?? 'all', 20),
-                    label: Text(v),
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFE5E5E5)),
-                    shape: const StadiumBorder(),
-                    onPressed: () => browse(v),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
+        districtDirectory(),
         sideCard(
           'Giao dịch an toàn',
           Column(
@@ -1439,8 +1387,8 @@ class _Home extends State<Home> {
                   ),
                   col('Khám phá', [
                     link('Mua bán đồ cũ', () => browse('Tất cả')),
-                    link('Đồ cho tặng', () => browse('Cho tặng')),
-                    link('Khu phố', () => go(1)),
+                    link('Quyên góp', () => browse('Quyên góp')),
+                    link('Cộng đồng', () => go(1)),
                     link('Trò chuyện', () => go(2)),
                   ]),
                   col('Hỗ trợ', [
@@ -1484,6 +1432,7 @@ class _Home extends State<Home> {
 
   Widget inbox() {
     final uid = db.auth.currentUser?.id;
+    final ordered = [...threads]..sort((a, b) => inboxUpdates.timestamp(b).compareTo(inboxUpdates.timestamp(a)));
     return PageBody(
       maxWidth: 820,
       children: [
@@ -1513,13 +1462,14 @@ class _Home extends State<Home> {
             ),
             child: Column(
               children: [
-                for (final (i, t) in threads.indexed) ...[
+                for (final (i, t) in ordered.indexed) ...[
                   if (i > 0) const Divider(indent: 84),
                   InkWell(
                     onTap: () async {
+                      inboxUpdates.markRead(t['id'] as String);
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => Chat(thread: t)),
+                        MaterialPageRoute(builder: (_) => Chat(thread: t, onRead: () => inboxUpdates.markRead(t['id'] as String))),
                       );
                       refresh();
                     },
@@ -1545,13 +1495,16 @@ class _Home extends State<Home> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  '${t['buyer_id'] == uid ? 'Bạn hỏi mua' : 'Có người hỏi mua'} · ${money(t['listings']['price'])}',
+                                  inboxUpdates.preview(t) ?? '${t['buyer_id'] == uid ? 'Bạn hỏi mua' : 'Có người hỏi mua'} · ${money(t['listings']['price'])}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(color: muted, fontSize: 13),
                                 ),
                               ],
                             ),
                           ),
-                          Text(timeAgo(t['created_at']), style: const TextStyle(color: muted, fontSize: 12)),
+                          if (inboxUpdates.isUnread(t['id'])) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.circle, color: brand, size: 9)),
+                          Text(timeAgo(inboxUpdates.timestamp(t)), style: const TextStyle(color: muted, fontSize: 12)),
                           const SizedBox(width: 4),
                           const Icon(Icons.chevron_right, color: Colors.black26),
                         ],
@@ -1564,6 +1517,18 @@ class _Home extends State<Home> {
           ),
       ],
     );
+  }
+
+  void openAccountListings(String title, List<Map<String, dynamic>> items) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: PageBody(children: [
+        if (items.isEmpty)
+          const EmptyState(icon: Icons.inbox_outlined, title: 'Chưa có món đồ', text: 'Tin đăng và món đã lưu sẽ xuất hiện ở đây.')
+        else
+          grid(items),
+      ]),
+    )));
   }
 
   Widget profile() {
@@ -1655,33 +1620,21 @@ class _Home extends State<Home> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
-        SectionTitle(
-          'Tin của tôi',
-          trailing: TextButton.icon(
-            onPressed: compose,
-            icon: const Icon(Icons.add),
-            label: const Text('Đăng tin'),
-          ),
-        ),
-        if (mine.isEmpty)
-          const EmptyState(
-            icon: Icons.sell_outlined,
-            title: 'Bạn chưa đăng món nào',
-            text: 'Chụp ảnh món đồ không còn dùng và đăng miễn phí trong một phút.',
-          )
-        else
-          grid(mine),
-        const SizedBox(height: 32),
-        const SectionTitle('Món đã lưu'),
-        if (saved.isEmpty)
-          const EmptyState(
-            icon: Icons.favorite_border_rounded,
-            title: 'Chưa lưu món nào',
-            text: 'Bấm biểu tượng trái tim trên món đồ để xem lại sau.',
-          )
-        else
-          grid(saved),
+        const SizedBox(height: 20),
+        SectionTitle('Hoạt động của tôi', trailing: TextButton.icon(
+          onPressed: compose, icon: const Icon(Icons.add), label: const Text('Đăng tin'),
+        )),
+        Card(child: Column(children: [
+          menu(Icons.sell_outlined, 'Tin của tôi · ${mine.length}', () => openAccountListings('Tin của tôi', mine)),
+          const Divider(height: 1),
+          menu(Icons.favorite_border, 'Món đã lưu · ${saved.length}', () => openAccountListings('Món đã lưu', saved)),
+          const Divider(height: 1),
+          menu(Icons.chat_bubble_outline, 'Tin nhắn', () => go(2)),
+          const Divider(height: 1),
+          menu(Icons.inventory_2_outlined, 'Ký gửi tại Passy', () => Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const ConsignmentPage()),
+          )),
+        ])),
         const SizedBox(height: 32),
         SectionTitle('Tài khoản và quyền riêng tư'),
         Container(
@@ -1691,7 +1644,7 @@ class _Home extends State<Home> {
           ),
           child: Column(
             children: [
-              menu(Icons.manage_accounts_outlined, 'Thông tin tài khoản', () async {
+              menu(Icons.manage_accounts_outlined, 'Hồ sơ và bảo mật', () async {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AccountSettingsPage()),
@@ -2472,7 +2425,7 @@ class _Compose extends State<Compose> {
         'owner_id': uid,
         'title': title.text.trim(),
         'description': 'Tình trạng: $condition\n\n${description.text.trim()}',
-        'price': transactionMode == 'Cho tặng' ? 0 : int.parse(price.text),
+        'price': transactionMode == 'Quyên góp' ? 0 : int.parse(price.text),
         'category': category,
         'area': widget.area,
         'image_path': path,
@@ -2572,12 +2525,12 @@ class _Compose extends State<Compose> {
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'Bán', label: Text('Bán'), icon: Icon(Icons.sell_outlined)),
-                  ButtonSegment(value: 'Cho tặng', label: Text('Cho tặng'), icon: Icon(Icons.volunteer_activism_outlined)),
+                  ButtonSegment(value: 'Quyên góp', label: Text('Quyên góp'), icon: Icon(Icons.volunteer_activism_outlined)),
                 ],
                 selected: {transactionMode},
                 onSelectionChanged: busy ? null : (selection) => setState(() {
                   transactionMode = selection.first;
-                  if (transactionMode == 'Cho tặng') {
+                  if (transactionMode == 'Quyên góp') {
                     price.text = '0';
                   } else if (price.text == '0') {
                     price.clear();
@@ -2635,13 +2588,13 @@ class _Compose extends State<Compose> {
                   ),
                   onChanged: (value) {
                     if (value == '0') {
-                      setState(() => transactionMode = 'Cho tặng');
+                      setState(() => transactionMode = 'Quyên góp');
                     }
                   },
                   validator: (v) {
                     final n = int.tryParse(v ?? '');
                     return n == null || n <= 0 || n > 100000000000
-                        ? 'Nhập giá hợp lệ hoặc chọn Cho tặng'
+                        ? 'Nhập giá hợp lệ hoặc chọn Quyên góp'
                         : null;
                   },
                 ),
@@ -3042,7 +2995,8 @@ class _Detail extends State<Detail> {
 
 class Chat extends StatefulWidget {
   final Map<String, dynamic> thread;
-  const Chat({super.key, required this.thread});
+  final VoidCallback? onRead;
+  const Chat({super.key, required this.thread, this.onRead});
   @override
   State<Chat> createState() => _Chat();
 }
@@ -3082,6 +3036,9 @@ class _Chat extends State<Chat> {
           messages = rows;
           error = null;
         });
+        if (ModalRoute.of(context)?.isCurrent ?? false) {
+          widget.onRead?.call();
+        }
       }
     } catch (e) {
       if (mounted) setState(() => error = friendly(e));
@@ -3092,7 +3049,7 @@ class _Chat extends State<Chat> {
 
   Future<void> send() async {
     final body = input.text.trim();
-    if (body.isEmpty || body.length > 2000) return;
+    if (sending || body.isEmpty || body.length > 2000) return;
     setState(() => sending = true);
     try {
       await db.from('messages').insert({
@@ -3100,7 +3057,8 @@ class _Chat extends State<Chat> {
         'sender_id': db.auth.currentUser!.id,
         'body': body,
       });
-      input.clear();
+      if (!mounted) return;
+      if (input.text.trim() == body) input.clear();
       await load();
     } catch (e) {
       if (mounted) notice(context, friendly(e));
