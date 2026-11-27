@@ -24,6 +24,7 @@ part 'market_map.dart';
 part 'consignment.dart';
 part 'market_home.dart';
 part 'inbox_updates.dart';
+part 'passy_story.dart';
 
 const brand = Color(0xFFFF6F32);
 final db = Supabase.instance.client;
@@ -414,7 +415,9 @@ class _Home extends State<Home> {
   String area = 'Cầu Giấy', category = 'Tất cả', search = '';
   String transactionFilter = 'Tất cả';
   bool showAllDistricts = false;
+  bool introductionOpen = false;
   final listingAnchor = GlobalKey();
+  final donationAnchor = GlobalKey();
   late final inboxUpdates = InboxUpdates(this);
   List<Map<String, dynamic>> listings = [], threads = [];
   Set<String> favorites = {};
@@ -435,6 +438,7 @@ class _Home extends State<Home> {
     super.initState();
     refresh();
     inboxUpdates.start();
+    WidgetsBinding.instance.addPostFrameCallback((_) => maybeIntroducePassy());
     if (widget.authMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) notice(context, widget.authMessage!);
@@ -447,6 +451,9 @@ class _Home extends State<Home> {
     });
     auth = db.auth.onAuthStateChange.listen((state) {
       refresh();
+      if (state.event == AuthChangeEvent.signedIn) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => maybeIntroducePassy());
+      }
       if (state.event == AuthChangeEvent.passwordRecovery) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -554,13 +561,13 @@ class _Home extends State<Home> {
     if (selected != null && mounted) setState(() => area = selected);
   }
 
-  Future<void> compose() async {
+  Future<void> compose({bool donation = false}) async {
     if (!await login() || !mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) =>
-            Compose(area: area == 'Tất cả Hà Nội' ? 'Cầu Giấy' : area),
+            Compose(area: area == 'Tất cả Hà Nội' ? 'Cầu Giấy' : area, donation: donation),
       ),
     );
     refresh();
@@ -835,10 +842,20 @@ class _Home extends State<Home> {
                   children: [
                     if (!wide) ...[searchBox(), const SizedBox(height: 16)],
                     if (search.isEmpty) ...[
-                      hero(wide),
+                      PassyStoryCarousel(onAction: exploreChapter, onArea: pickArea),
                       SizedBox(height: wide ? 36 : 24),
                       services(wide),
                       SizedBox(height: wide ? 44 : 28),
+                    ],
+                    if (search.isEmpty && transactionFilter == 'Quyên góp') ...[
+                      PassyChapterPanel(key: donationAnchor, chapter: passyChapters[2], compact: true,
+                        secondary: FilledButton.icon(
+                          onPressed: () => compose(donation: true),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Đăng món quyên góp'),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                     ],
                     if (wide)
                       Row(
@@ -868,143 +885,72 @@ class _Home extends State<Home> {
     );
   }
 
-  Widget hero(bool wide) => Container(
-    width: double.infinity,
-    padding: EdgeInsets.all(wide ? 40 : 22),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(24),
-      gradient: const LinearGradient(
-        colors: [Color(0xFFFFF3EA), Color(0xFFFFE3D1)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.location_on, color: brand, size: 15),
-                    SizedBox(width: 4),
-                    Flexible(child: Text(
-                      'Chợ đồ cũ của hàng xóm Hà Nội',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: brand,
-                        fontSize: 13,
-                      ),
-                    )),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Mua bán đồ cũ\nvới người ngay gần bạn',
-                style: TextStyle(
-                  fontSize: wide ? 40 : 26,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Đăng tin miễn phí, nhắn tin trực tiếp, hẹn gặp ở chỗ thuận tiện. '
-                'Món đồ bạn không dùng nữa có thể là thứ hàng xóm đang cần.',
-                style: TextStyle(
-                  fontSize: wide ? 17 : 15,
-                  height: 1.6,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 22),
-              Wrap(
-                spacing: 12,
-                runSpacing: 10,
-                children: [
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: brand,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 16,
-                      ),
-                    ),
-                    onPressed: compose,
-                    icon: const Icon(Icons.add_a_photo_outlined, size: 20),
-                    label: const Text(
-                      'Đăng tin miễn phí',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      side: BorderSide.none,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 16,
-                      ),
-                    ),
-                    onPressed: pickArea,
-                    icon: const Icon(Icons.location_on_outlined, size: 20),
-                    label: Text('Đổi khu vực · $area'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (wide) ...[const SizedBox(width: 32), heroArt()],
-      ],
-    ),
-  );
+  Future<void> showPassyStory() async {
+    if (!mounted) return;
+    await showDialog<void>(context: context, builder: (_) => const PassyStoryTour());
+  }
 
-  Widget heroArt() => SizedBox(
-    width: 340,
-    height: 250,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: 45,
-          top: 5,
-          child: Container(
-            width: 240,
-            height: 240,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [Colors.white, Color(0x00FFFFFF)]),
-            ),
-          ),
-        ),
-        Positioned(left: 85, top: 40, child: emoji('couch', 170)),
-        Positioned(left: 0, top: 10, child: emoji('plant', 92)),
-        Positioned(right: 0, top: 0, child: emoji('laptop', 88)),
-        Positioned(left: 20, bottom: 0, child: emoji('books', 78)),
-        Positioned(right: 18, bottom: 4, child: emoji('bicycle', 96)),
-        Positioned(left: 150, top: -14, child: emoji('pin', 56)),
-      ],
-    ),
-  );
+  Future<void> maybeIntroducePassy() async {
+    if (!mounted || introductionOpen) return;
+    introductionOpen = true;
+    final user = db.auth.currentUser;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final google = (user?.appMetadata['providers'] as List?)?.contains('google') ??
+          user?.appMetadata['provider'] == 'google';
+      final key = google && user != null
+          ? 'passy.intro.v1.google.${user.id}'
+          : 'passy.intro.v1.welcome';
+      if (!mounted || prefs.getBool(key) == true || db.auth.currentUser?.id != user?.id ||
+          !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      if (google && user != null && user.userMetadata?['passy_profile_ready'] != true) {
+        final complete = await Navigator.push<bool>(context, MaterialPageRoute(
+          builder: (_) => const AccountSettingsPage(onboarding: true),
+        ));
+        if (!mounted || db.auth.currentUser?.id != user.id) return;
+        await prefs.setBool(key, true);
+        if (complete != true) return;
+      } else {
+        await prefs.setBool(key, true);
+      }
+      await showPassyStory();
+    } finally {
+      introductionOpen = false;
+      if (mounted && db.auth.currentUser?.id != user?.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => maybeIntroducePassy());
+        WidgetsBinding.instance.scheduleFrame();
+      }
+    }
+  }
+
+  void exploreChapter(int index) {
+    switch (index) {
+      case 0:
+        browse('Tất cả');
+      case 1:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsignmentPage()));
+      case 2:
+        setState(() {
+          page = 0;
+          search = '';
+          category = 'Tất cả';
+          transactionFilter = 'Quyên góp';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final target = donationAnchor.currentContext;
+          if (target != null) Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 250));
+        });
+      case 3:
+        go(1);
+    }
+  }
 
   Widget services(bool wide) {
-    final items = <(IconData, String, VoidCallback)>[
-      (Icons.storefront_outlined, 'Mua bán đồ cũ', () => browse('Tất cả')),
-      (Icons.inventory_2_outlined, 'Ký gửi tại Passy', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsignmentPage()))),
-      (Icons.volunteer_activism_outlined, 'Quyên góp', () => browse('Quyên góp')),
-      (Icons.apartment_outlined, 'Cộng đồng', () => go(1)),
+    final items = <(String, String, String, int)>[
+      ('shop', 'Mua bán đồ cũ', 'Tìm món ngay gần bạn', 0),
+      ('parcel', 'Ký gửi tại Passy', 'Passy bán giúp bạn', 1),
+      ('gift', 'Quyên góp', 'Trao món còn dùng tốt', 2),
+      ('apartments', 'Cộng đồng', 'Làm quen hàng xóm', 3),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1017,18 +963,18 @@ class _Home extends State<Home> {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 4,
+          crossAxisCount: wide ? 4 : 2,
           mainAxisSpacing: wide ? 12 : 8,
           crossAxisSpacing: wide ? 12 : 8,
-          childAspectRatio: wide ? 2.35 : 0.8,
+          mainAxisExtent: wide ? 142 : 113,
           children: items.map((e) {
-            final (icon, label, onTap) = e;
+            final (icon, label, subtitle, chapter) = e;
             return Material(
-              color: icon == Icons.inventory_2_outlined ? brandSoft : soft,
+              color: chapter == 0 ? soft : passyChapters[chapter].color.withValues(alpha: .53),
               borderRadius: BorderRadius.circular(18),
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
-                onTap: onTap,
+                onTap: () => exploreChapter(chapter),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -1040,7 +986,7 @@ class _Home extends State<Home> {
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Icon(icon, size: wide ? 34 : 28, color: brand),
+                      child: emoji(icon, wide ? 58 : 47),
                     ),
                     SizedBox(height: wide ? 10 : 6),
                     Padding(
@@ -1056,6 +1002,10 @@ class _Home extends State<Home> {
                         ),
                       ),
                     ),
+                    if (wide) ...[
+                      const SizedBox(height: 3),
+                      Text(subtitle, style: const TextStyle(color: muted, fontSize: 12)),
+                    ],
                   ],
                 ),
               ),
@@ -1387,8 +1337,9 @@ class _Home extends State<Home> {
                   ),
                   col('Khám phá', [
                     link('Mua bán đồ cũ', () => browse('Tất cả')),
-                    link('Quyên góp', () => browse('Quyên góp')),
+                    link('Quyên góp', () => exploreChapter(2)),
                     link('Cộng đồng', () => go(1)),
+                    link('Câu chuyện Passy', showPassyStory),
                     link('Trò chuyện', () => go(2)),
                   ]),
                   col('Hỗ trợ', [
@@ -1739,7 +1690,8 @@ class ListingImage extends StatelessWidget {
 }
 
 class AccountSettingsPage extends StatefulWidget {
-  const AccountSettingsPage({super.key});
+  const AccountSettingsPage({super.key, this.onboarding = false});
+  final bool onboarding;
 
   @override
   State<AccountSettingsPage> createState() => _AccountSettingsPageState();
@@ -1788,8 +1740,15 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     try {
       final displayName = name.text.trim();
       await db.from('profiles').update({'name': displayName, 'area': area}).eq('id', user.id);
-      await db.auth.updateUser(UserAttributes(data: {'name': displayName}));
+      await db.auth.updateUser(UserAttributes(data: {
+        'name': displayName,
+        if (widget.onboarding) 'passy_profile_ready': true,
+      }));
       if (!mounted) return;
+      if (widget.onboarding) {
+        Navigator.pop(context, true);
+        return;
+      }
       notice(context, 'Đã cập nhật hồ sơ của bạn.');
       setState(() => saving = false);
     } catch (e) {
@@ -1861,7 +1820,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final providers = (user.appMetadata['providers'] as List?)?.whereType<String>().toList() ?? const <String>[];
     final joined = DateTime.tryParse(user.createdAt)?.toLocal();
     return Scaffold(
-      appBar: AppBar(title: const Text('Tài khoản của tôi')),
+      appBar: AppBar(
+        title: Text(widget.onboarding ? 'Hoàn thiện hồ sơ Passy' : 'Tài khoản của tôi'),
+        actions: [if (widget.onboarding) TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const Text('Để sau'))],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : PageBody(
@@ -1907,6 +1869,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   ]),
                 ),
                 if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
+                if (!widget.onboarding) ...[
                 const SizedBox(height: 28),
                 const SectionTitle('Đăng nhập và bảo mật'),
                 Card(
@@ -1925,6 +1888,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   const Divider(height: 1),
                   const ListTile(leading: Icon(Icons.shield_outlined), title: Text('Dữ liệu cá nhân'), subtitle: Text('Email không hiển thị công khai. Yêu cầu xóa dữ liệu theo hướng dẫn trong Chính sách riêng tư.')),
                 ])),
+                ],
                 if (error != null) TextButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Tải lại thông tin')),
               ],
             ),
@@ -2346,7 +2310,8 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
 
 class Compose extends StatefulWidget {
   final String area;
-  const Compose({super.key, required this.area});
+  const Compose({super.key, required this.area, this.donation = false});
+  final bool donation;
   @override
   State<Compose> createState() => _Compose();
 }
@@ -2362,6 +2327,12 @@ class _Compose extends State<Compose> {
   Uint8List? photo;
   String mime = 'image/jpeg';
   bool busy = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.donation) transactionMode = 'Quyên góp';
+  }
+
   @override
   void dispose() {
     title.dispose();

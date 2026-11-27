@@ -102,12 +102,13 @@ class _ConsignmentPageState extends State<ConsignmentPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Ký gửi tại Passy')),
     body: PageBody(maxWidth: 720, children: [
-      Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(18)), child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(Icons.inventory_2_outlined, color: brand, size: 38),
-        SizedBox(height: 8),
-        Text('Passy thay bạn bán món đồ', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
-        SizedBox(height: 8), Text('Gửi thông tin món đồ và điểm tiếp nhận mong muốn. Passy sẽ kiểm tra, thống nhất giá bán, mức hoa hồng và điều kiện bằng tin nhắn trước khi bạn bàn giao đồ.', style: TextStyle(height: 1.55, color: muted)),
-      ])),
+      PassyChapterPanel(chapter: passyChapters[1], compact: true),
+      const SizedBox(height: 16),
+      const Wrap(spacing: 8, runSpacing: 8, children: [
+        Chip(label: Text('Gửi thông tin món đồ')),
+        Chip(label: Text('Thống nhất giá và hoa hồng')),
+        Chip(label: Text('Hẹn bàn giao tại điểm nhận')),
+      ]),
       const SizedBox(height: 20),
       TextField(controller: title, maxLength: 160, decoration: const InputDecoration(labelText: 'Tên món đồ', hintText: 'Ví dụ: Ghế ăn gỗ còn tốt')),
       const SizedBox(height: 12),

@@ -76,6 +76,8 @@ class CommunitiesPage extends StatefulWidget {
 
 class _CommunitiesPage extends State<CommunitiesPage> {
   List<Map<String, dynamic>> groups = [];
+  List<Map<String, dynamic>> recent = [];
+  String? recentOwner;
   bool loading = true, busy = false;
   String? error;
   @override
@@ -94,10 +96,13 @@ class _CommunitiesPage extends State<CommunitiesPage> {
       if (mounted) {
         setState(() {
           groups = rows;
+          recent = [];
+          recentOwner = null;
           loading = false;
           error = null;
         });
       }
+      if (rows.isNotEmpty) await loadRecent(rows);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -105,6 +110,25 @@ class _CommunitiesPage extends State<CommunitiesPage> {
           loading = false;
         });
       }
+    }
+  }
+
+  Future<void> loadRecent(List<Map<String, dynamic>> memberGroups) async {
+    final uid = db.auth.currentUser?.id;
+    try {
+      final posts = await db.from('community_posts')
+          .select('id,body,topic,created_at,community_id')
+          .inFilter('community_id', memberGroups.map((group) => group['id']).toList())
+          .order('created_at', ascending: false)
+          .limit(4);
+      if (mounted && uid != null && db.auth.currentUser?.id == uid) {
+        setState(() {
+          recent = posts;
+          recentOwner = uid;
+        });
+      }
+    } catch (_) {
+      // The group directory is still available when the recent feed is offline.
     }
   }
 
@@ -195,36 +219,7 @@ class _CommunitiesPage extends State<CommunitiesPage> {
   Widget build(BuildContext c) => PageBody(
     maxWidth: 820,
     children: [
-      Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFEAF7F0), Color(0xFFD9F0E4)]),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cộng đồng quanh bạn',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Kết nối với cư dân cùng tòa hoặc cùng khu: hỏi đáp, thông báo, nhờ giúp đỡ và rủ nhau gặp mặt. '
-                    'Bài viết trong cộng đồng chỉ dành cho thành viên.',
-                    style: TextStyle(color: muted, height: 1.6),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: 16),
-            Icon(Icons.apartment_rounded, size: 56, color: Color(0xFF2E9E6B)),
-          ],
-        ),
-      ),
+      PassyChapterPanel(chapter: passyChapters[3], compact: true),
       const SizedBox(height: 20),
       Wrap(
         spacing: 10,
@@ -255,6 +250,23 @@ class _CommunitiesPage extends State<CommunitiesPage> {
           title: 'Chưa tham gia cộng đồng nào',
           text: 'Nhập mã mời từ người quen, hoặc tạo cộng đồng cho khu nhà, cơ quan của bạn.',
         ),
+      if (recentOwner == db.auth.currentUser?.id && recent.isNotEmpty) ...[
+        const SectionTitle('Chuyện mới trong các nhóm'),
+        Card(child: Column(children: [
+          for (final post in recent)
+            ListTile(
+              leading: const Icon(Icons.forum_outlined, color: brand),
+              title: Text(post['body'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text([
+                ...groups.where((g) => g['id'] == post['community_id']).map((g) => g['name']),
+                timeAgo(post['created_at']),
+              ].join(' · ')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => CommunityReplies(post: post))),
+            ),
+        ])),
+        const SizedBox(height: 24),
+      ],
       if (groups.isNotEmpty) const SectionTitle('Cộng đồng của bạn'),
       ...groups.map(
         (g) => Card(
@@ -266,10 +278,13 @@ class _CommunitiesPage extends State<CommunitiesPage> {
                 ? '${g['building_location'] ?? ''} · Nhóm riêng bằng mã mời, chưa xác minh cư trú'
                 : 'Nhóm có mã mời · không xác minh cư trú'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => CommunityBoard(group: g)),
-            ),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CommunityBoard(group: g)),
+              );
+              if (mounted) await load();
+            },
           ),
         ),
       ),

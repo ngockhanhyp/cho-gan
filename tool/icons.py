@@ -67,6 +67,31 @@ ICONS["shop"] = svg(
     "orange", "yellow",
 )
 
+# Ký gửi: parcel with a Passy tracking label.
+ICONS["parcel"] = svg(
+    '<path d="M13 37l36-15 35 14-35 16z" fill="url(#yellow)"/>'
+    '<path d="M13 37l36 15v31L15 71a4 4 0 0 1-2-4z" fill="url(#orange)"/>'
+    '<path d="M49 52l35-16v32a5 5 0 0 1-3 5L49 83z" fill="#E0521A"/>'
+    '<path d="M34 28l34 14-9 5-35-15z" fill="url(#cream)"/>'
+    '<path d="M59 47l9-5v16l-9 4z" fill="#FFE08A"/>'
+    '<path d="M18 43l15 5v7l-15-5z" fill="#fff" opacity=".38"/>'
+    '<path d="M23 57l19 7v12l-19-7z" fill="url(#cream)"/>'
+    '<path d="M27 63l10 4m-10 0 7 3" stroke="#E0521A" stroke-width="1.5" stroke-linecap="round"/>',
+    "yellow", "orange", "cream",
+)
+
+# Cộng đồng: apartments with warm lights and a shared entrance.
+ICONS["apartments"] = svg(
+    '<rect x="47" y="33" width="34" height="49" rx="4" fill="url(#teal)"/>'
+    '<rect x="13" y="18" width="42" height="64" rx="5" fill="url(#orange)"/>'
+    '<rect x="16" y="21" width="21" height="4" rx="2" fill="#fff" opacity=".38"/>'
+    '<path d="M25 81V69a6 6 0 0 1 6-6h7a6 6 0 0 1 6 6v12z" fill="url(#cream)"/>'
+    + ''.join(f'<rect x="{x}" y="{y}" width="9" height="8" rx="2" fill="url(#cream)"/>' for x in (22, 38, 62) for y in (36, 49) if x != 62 or y == 49)
+    + '<rect x="62" y="62" width="9" height="8" rx="2" fill="url(#cream)"/>'
+    '<path d="M73 81v-7a5 5 0 0 1 10 0v7z" fill="url(#green)"/>',
+    "orange", "cream", "teal", "green",
+)
+
 # Cho tặng: gift box with ribbon
 ICONS["gift"] = svg(
     '<rect x="20" y="46" width="56" height="36" rx="6" fill="url(#pink)"/>'
