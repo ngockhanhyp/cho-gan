@@ -1638,6 +1638,43 @@ class _Home extends State<Home> {
         else
           grid(saved),
         const SizedBox(height: 32),
+        SectionTitle('Tài khoản và quyền riêng tư'),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: line),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              menu(Icons.manage_accounts_outlined, 'Thông tin tài khoản', () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AccountSettingsPage()),
+                );
+                if (mounted) refresh();
+              }),
+              const Divider(height: 1),
+              menu(Icons.privacy_tip_outlined, 'Quyền riêng tư và dữ liệu', () {
+                showDialog<void>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Quyền riêng tư của bạn'),
+                    content: const Text(
+                      'Email đăng nhập không hiển thị trên hồ sơ. Bạn có thể sửa hoặc ẩn tin đăng trong mục “Tin của tôi”. Để yêu cầu xóa tài khoản và dữ liệu, vui lòng liên hệ quản trị viên theo hướng dẫn tại Chính sách riêng tư trên website.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Đã hiểu'),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: line),
@@ -1701,6 +1738,200 @@ class ListingImage extends StatelessWidget {
             ),
           ),
   );
+}
+
+class AccountSettingsPage extends StatefulWidget {
+  const AccountSettingsPage({super.key});
+
+  @override
+  State<AccountSettingsPage> createState() => _AccountSettingsPageState();
+}
+
+class _AccountSettingsPageState extends State<AccountSettingsPage> {
+  final name = TextEditingController();
+  final form = GlobalKey<FormState>();
+  String area = passyAreas.first;
+  bool loading = true, saving = false;
+  String? error;
+  User get user => db.auth.currentUser!;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    try {
+      final profile = await db
+          .from('profiles')
+          .select('name,area')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (!mounted) return;
+      name.text = '${profile?['name'] ?? user.userMetadata?['name'] ?? ''}';
+      final savedArea = '${profile?['area'] ?? passyAreas.first}';
+      area = passyAreas.contains(savedArea) ? savedArea : passyAreas.first;
+      setState(() => loading = false);
+    } catch (e) {
+      if (mounted) setState(() { error = friendly(e); loading = false; });
+    }
+  }
+
+  Future<void> saveProfile() async {
+    if (!form.currentState!.validate()) return;
+    setState(() { saving = true; error = null; });
+    try {
+      final displayName = name.text.trim();
+      await db.from('profiles').update({'name': displayName, 'area': area}).eq('id', user.id);
+      await db.auth.updateUser(UserAttributes(data: {'name': displayName}));
+      if (!mounted) return;
+      notice(context, 'Đã cập nhật hồ sơ của bạn.');
+      setState(() => saving = false);
+    } catch (e) {
+      if (mounted) setState(() { error = friendly(e); saving = false; });
+    }
+  }
+
+  Future<void> changePassword() async {
+    final password = TextEditingController();
+    final confirm = TextEditingController();
+    final key = GlobalKey<FormState>();
+    var busy = false;
+    String? message;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, refreshDialog) => AlertDialog(
+          title: const Text('Đổi mật khẩu'),
+          content: Form(
+            key: key,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Dùng mật khẩu dài ít nhất 8 ký tự và không dùng lại mật khẩu ở nơi khác.'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+                  validator: (value) => value == null || value.length < 8 ? 'Cần ít nhất 8 ký tự' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirm,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Nhập lại mật khẩu mới'),
+                  validator: (value) => value != password.text ? 'Mật khẩu chưa khớp' : null,
+                ),
+                if (message != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(message!, style: const TextStyle(color: Colors.red))),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: busy ? null : () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+            FilledButton(
+              onPressed: busy ? null : () async {
+                if (!key.currentState!.validate()) return;
+                refreshDialog(() => busy = true);
+                try {
+                  await db.auth.updateUser(UserAttributes(password: password.text));
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  if (mounted) notice(this.context, 'Mật khẩu đã được cập nhật.');
+                } catch (e) {
+                  refreshDialog(() { message = friendly(e); busy = false; });
+                }
+              },
+              child: Text(busy ? 'Đang cập nhật…' : 'Cập nhật'),
+            ),
+          ],
+        ),
+      ),
+    );
+    password.dispose();
+    confirm.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final providers = (user.appMetadata['providers'] as List?)?.whereType<String>().toList() ?? const <String>[];
+    final joined = DateTime.tryParse(user.createdAt)?.toLocal();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Tài khoản của tôi')),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : PageBody(
+              maxWidth: 720,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(18)),
+                  child: Row(children: [
+                    Avatar(name: name.text.isEmpty ? 'Hàng xóm' : name.text, size: 58),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name.text.isEmpty ? 'Hàng xóm' : name.text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(user.email ?? 'Tài khoản liên kết', style: const TextStyle(color: muted)),
+                    ])),
+                    Icon(user.emailConfirmedAt != null ? Icons.verified : Icons.info_outline, color: user.emailConfirmedAt != null ? Colors.green : muted),
+                  ]),
+                ),
+                const SizedBox(height: 24),
+                const SectionTitle('Hồ sơ công khai'),
+                Form(
+                  key: form,
+                  child: Column(children: [
+                    TextFormField(
+                      controller: name,
+                      maxLength: 80,
+                      decoration: const InputDecoration(labelText: 'Tên hiển thị', helperText: 'Tên này xuất hiện trên hồ sơ và tin đăng của bạn.'),
+                      validator: (value) => value == null || value.trim().length < 2 ? 'Tên cần ít nhất 2 ký tự' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Khu vực của bạn'),
+                      subtitle: Text('$area · chỉ hiển thị khu vực, không hiển thị địa chỉ nhà'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final selected = await showLocationPicker(context, currentArea: area);
+                        if (selected != null && mounted) setState(() => area = selected);
+                      },
+                    ),
+                    Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: saving ? null : saveProfile, icon: const Icon(Icons.save_outlined), label: Text(saving ? 'Đang lưu…' : 'Lưu hồ sơ'))),
+                  ]),
+                ),
+                if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
+                const SizedBox(height: 28),
+                const SectionTitle('Đăng nhập và bảo mật'),
+                Card(
+                  child: Column(children: [
+                    ListTile(leading: const Icon(Icons.email_outlined), title: const Text('Email đăng nhập'), subtitle: Text(user.email ?? 'Chưa có email'), trailing: user.emailConfirmedAt != null ? const Chip(label: Text('Đã xác nhận')) : const Chip(label: Text('Chưa xác nhận'))),
+                    const Divider(height: 1),
+                    ListTile(leading: const Icon(Icons.login), title: const Text('Phương thức đã liên kết'), subtitle: Text(providers.isEmpty ? 'Email' : providers.map((p) => p[0].toUpperCase() + p.substring(1)).join(' · '))),
+                    const Divider(height: 1),
+                    ListTile(leading: const Icon(Icons.password), title: const Text('Mật khẩu'), subtitle: const Text('Đổi mật khẩu tài khoản email'), trailing: const Icon(Icons.chevron_right), onTap: changePassword),
+                  ]),
+                ),
+                const SizedBox(height: 28),
+                const SectionTitle('Thông tin tài khoản'),
+                Card(child: Column(children: [
+                  ListTile(leading: const Icon(Icons.calendar_month_outlined), title: const Text('Ngày tham gia'), subtitle: Text(joined == null ? 'Đang cập nhật' : '${joined.day}/${joined.month}/${joined.year}')),
+                  const Divider(height: 1),
+                  const ListTile(leading: Icon(Icons.shield_outlined), title: Text('Dữ liệu cá nhân'), subtitle: Text('Email không hiển thị công khai. Yêu cầu xóa dữ liệu theo hướng dẫn trong Chính sách riêng tư.')),
+                ])),
+                if (error != null) TextButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Tải lại thông tin')),
+              ],
+            ),
+    );
+  }
 }
 
 class Login extends StatefulWidget {
