@@ -842,7 +842,10 @@ class _Home extends State<Home> {
                   children: [
                     if (!wide) ...[searchBox(), const SizedBox(height: 16)],
                     if (search.isEmpty) ...[
-                      PassyStoryCarousel(onAction: exploreChapter, onArea: pickArea),
+                      PassyStoryCarousel(
+                        onAction: exploreChapter,
+                        onPost: () => compose(),
+                      ),
                       SizedBox(height: wide ? 36 : 24),
                       services(wide),
                       SizedBox(height: wide ? 44 : 28),

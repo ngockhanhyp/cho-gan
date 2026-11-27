@@ -13,6 +13,15 @@ class PassyChapter {
   final Color color;
 }
 
+const marketplaceOpening = PassyChapter(
+  'Chợ đồ cũ của hàng xóm Hà Nội',
+  'couch',
+  'Mua bán đồ cũ ngay gần bạn',
+  'Chiếc ghế bạn không còn dùng có thể là góc đọc sách của một người hàng xóm. Đăng tin miễn phí, trò chuyện trực tiếp và hẹn gặp ở nơi thuận tiện cho cả hai.',
+  'Đăng tin miễn phí',
+  Color(0xFFFFEBD9),
+);
+
 const passyChapters = [
   PassyChapter(
     'Câu chuyện Passy',
@@ -130,13 +139,17 @@ class PassyChapterPanel extends StatelessWidget {
                   child: emoji(
                     chapter.icon == 'apartments'
                         ? 'chat'
-                        : chapter.icon == 'shop'
+                        : chapter.icon == 'shop' || chapter.icon == 'couch'
                         ? 'pin'
                         : 'heart',
                     65,
                   ),
                 ),
+              if (horizontal && chapter.icon == 'couch')
+                Positioned(left: 18, bottom: 6, child: emoji('books', 65)),
               emoji(chapter.icon, horizontal ? (compact ? 147 : 177) : 78),
+              if (horizontal && chapter.icon == 'couch')
+                Positioned(right: 4, bottom: 12, child: emoji('bicycle', 75)),
             ],
           ),
         ),
@@ -170,10 +183,10 @@ class PassyStoryCarousel extends StatefulWidget {
   const PassyStoryCarousel({
     super.key,
     required this.onAction,
-    required this.onArea,
+    required this.onPost,
   });
   final ValueChanged<int> onAction;
-  final VoidCallback onArea;
+  final VoidCallback onPost;
 
   @override
   State<PassyStoryCarousel> createState() => _PassyStoryCarouselState();
@@ -246,12 +259,16 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                     itemCount: passyChapters.length,
                     onPageChanged: (index) => setState(() => current = index),
                     itemBuilder: (context, index) => PassyChapterPanel(
-                      chapter: passyChapters[index],
-                      action: () => widget.onAction(index),
+                      chapter: index == 0
+                          ? marketplaceOpening
+                          : passyChapters[index],
+                      action: index == 0
+                          ? widget.onPost
+                          : () => widget.onAction(index),
                       secondary: index == 0
                           ? TextButton(
-                              onPressed: widget.onArea,
-                              child: const Text('Đổi khu vực'),
+                              onPressed: () => widget.onAction(0),
+                              child: const Text('Xem đồ quanh bạn'),
                             )
                           : null,
                     ),
@@ -273,7 +290,9 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                   ),
                   for (final (index, chapter) in passyChapters.indexed)
                     IconButton(
-                      tooltip: chapter.label,
+                      tooltip: index == 0
+                          ? marketplaceOpening.label
+                          : chapter.label,
                       onPressed: () => move(index),
                       icon: Icon(
                         index == current ? Icons.circle : Icons.circle_outlined,
