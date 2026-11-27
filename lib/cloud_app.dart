@@ -771,9 +771,16 @@ class _Home extends State<Home> {
                       areaButton(),
                       const SizedBox(width: 8),
                       navLink('Cộng đồng', 1),
-                      if (MediaQuery.sizeOf(context).width >= 1100) TextButton(
+                      if (MediaQuery.sizeOf(context).width >= 1100) TextButton.icon(
                         onPressed: showPassyStory,
-                        child: const Text('Về chúng tôi'),
+                        style: TextButton.styleFrom(
+                          backgroundColor: const Color(0xFFF7E5E9),
+                          foregroundColor: const Color(0xFF482329),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: const StadiumBorder(),
+                        ),
+                        icon: const Icon(Icons.auto_awesome_outlined, size: 17),
+                        label: const Text('Câu chuyện Passy', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                       navLink(inboxUpdates.unreadCount == 0 ? 'Trò chuyện' : 'Trò chuyện (${inboxUpdates.unreadCount})', 2),
                       navLink(
