@@ -890,6 +890,10 @@ class _Home extends State<Home> {
 
   Future<void> showPassyStory() async {
     if (!mounted) return;
+    if (kIsWeb) {
+      await launchUrl(Uri.base.resolve('story.html'), webOnlyWindowName: '_self');
+      return;
+    }
     await showDialog<void>(context: context, builder: (_) => const PassyStoryTour());
   }
 
@@ -916,7 +920,7 @@ class _Home extends State<Home> {
       } else {
         await prefs.setBool(key, true);
       }
-      await showPassyStory();
+      if (!kIsWeb) await showPassyStory();
     } finally {
       introductionOpen = false;
       if (mounted && db.auth.currentUser?.id != user?.id) {
