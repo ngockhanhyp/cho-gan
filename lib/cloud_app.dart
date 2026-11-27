@@ -5,7 +5,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,6 +18,7 @@ import 'social_auth.dart';
 part 'trust.dart';
 part 'community.dart';
 part 'listing_edit.dart';
+part 'market_map.dart';
 
 const brand = Color(0xFFFF6F32);
 final db = Supabase.instance.client;
@@ -1082,6 +1086,18 @@ class _Home extends State<Home> {
         )).toList(),
       ),
       const SizedBox(height: 12),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MarketMapPage()),
+          ),
+          icon: const Icon(Icons.map_outlined),
+          label: const Text('Xem trên bản đồ'),
+        ),
+      ),
+      const SizedBox(height: 8),
       SizedBox(
         height: 40,
         child: ListView(
