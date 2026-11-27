@@ -771,6 +771,10 @@ class _Home extends State<Home> {
                       areaButton(),
                       const SizedBox(width: 8),
                       navLink('Cộng đồng', 1),
+                      if (MediaQuery.sizeOf(context).width >= 1100) TextButton(
+                        onPressed: showPassyStory,
+                        child: const Text('Về chúng tôi'),
+                      ),
                       navLink(inboxUpdates.unreadCount == 0 ? 'Trò chuyện' : 'Trò chuyện (${inboxUpdates.unreadCount})', 2),
                       navLink(
                         db.auth.currentUser == null ? 'Đăng nhập' : 'Của tôi',
@@ -840,7 +844,17 @@ class _Home extends State<Home> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!wide) ...[searchBox(), const SizedBox(height: 16)],
+                    if (!wide) ...[
+                      searchBox(),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: showPassyStory,
+                          child: const Text('Về chúng tôi'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     if (search.isEmpty) ...[
                       PassyStoryCarousel(
                         onAction: exploreChapter,
@@ -1346,7 +1360,7 @@ class _Home extends State<Home> {
                     link('Mua bán đồ cũ', () => browse('Tất cả')),
                     link('Quyên góp', () => exploreChapter(2)),
                     link('Cộng đồng', () => go(1)),
-                    link('Câu chuyện Passy', showPassyStory),
+                    link('Về chúng tôi', showPassyStory),
                     link('Trò chuyện', () => go(2)),
                   ]),
                   col('Hỗ trợ', [
