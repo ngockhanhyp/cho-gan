@@ -2415,12 +2415,25 @@ class _Compose extends State<Compose> {
   String transactionMode = 'Bán';
   final photos = <({Uint8List bytes, String mime})>[];
   bool picking = false;
+  static const galleryLimit = 10;
+  bool enhancedListings = false;
   bool acceptsOffers = false;
+  int get photoLimit => enhancedListings ? galleryLimit : 1;
   bool busy = false;
   @override
   void initState() {
     super.initState();
     if (widget.donation) transactionMode = 'Quyên góp';
+    _checkListingFields();
+  }
+
+  Future<void> _checkListingFields() async {
+    try {
+      await db.from('listings').select('additional_image_paths,accepts_offers').limit(0);
+      if (mounted) setState(() => enhancedListings = true);
+    } catch (_) {
+      // Deploying the web app before the listing migration still allows single-photo posts.
+    }
   }
 
   @override
@@ -2433,11 +2446,11 @@ class _Compose extends State<Compose> {
   }
 
   Future<void> pick() async {
-    if (picking || busy || photos.length >= 10) return;
+    if (picking || busy || photos.length >= photoLimit) return;
     setState(() => picking = true);
     try {
       final picker = ImagePicker();
-      final remaining = 10 - photos.length;
+      final remaining = photoLimit - photos.length;
       final List<XFile> files;
       if (remaining == 1) {
         final file = await picker.pickImage(
@@ -2455,7 +2468,7 @@ class _Compose extends State<Compose> {
       }
       final selected = <({Uint8List bytes, String mime})>[];
       var skipped = false;
-      for (final file in files.take(10 - photos.length)) {
+      for (final file in files.take(photoLimit - photos.length)) {
         final bytes = await file.readAsBytes();
         final mime = switch (bytes) {
           [0xff, 0xd8, 0xff, ...] => 'image/jpeg',
@@ -2571,7 +2584,7 @@ class _Compose extends State<Compose> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    if (photos.length < 10)
+                    if (photos.length < photoLimit)
                       OutlinedButton(
                         onPressed: busy || picking ? null : pick,
                         child: Column(
@@ -2579,7 +2592,7 @@ class _Compose extends State<Compose> {
                           children: [
                             const Icon(Icons.add_a_photo_outlined),
                             const SizedBox(height: 6),
-                            Text('${photos.length}/10'),
+                            Text('${photos.length}/$photoLimit'),
                           ],
                         ),
                       ),
@@ -2716,7 +2729,7 @@ class _Compose extends State<Compose> {
                         : null;
                   },
                 ),
-                CheckboxListTile(
+                if (enhancedListings) CheckboxListTile(
                   value: acceptsOffers,
                   onChanged: busy ? null : (value) {
                     setState(() => acceptsOffers = value ?? false);
