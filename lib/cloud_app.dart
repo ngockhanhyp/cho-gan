@@ -538,18 +538,7 @@ class _Home extends State<Home> {
   Future<void> favorite(Map<String, dynamic> x) async {
     if (!await login()) return;
     try {
-      if (favorites.contains(x['id'])) {
-        await db
-            .from('favorites')
-            .delete()
-            .eq('user_id', db.auth.currentUser!.id)
-            .eq('listing_id', x['id']);
-      } else {
-        await db.from('favorites').insert({
-          'user_id': db.auth.currentUser!.id,
-          'listing_id': x['id'],
-        });
-      }
+      await _setFavorite(x['id'], !favorites.contains(x['id']));
       await refresh();
     } catch (e) {
       if (mounted) notice(context, friendly(e));
@@ -2787,6 +2776,18 @@ String? _suggestedPickup(String description) {
   return pickup.isEmpty || pickup.contains('\n') ? null : pickup;
 }
 
+Future<void> _setFavorite(String listingId, bool saved) async {
+  final uid = db.auth.currentUser!.id;
+  if (saved) {
+    await db.from('favorites').upsert(
+      {'user_id': uid, 'listing_id': listingId},
+      ignoreDuplicates: true,
+    );
+  } else {
+    await db.from('favorites').delete().eq('user_id', uid).eq('listing_id', listingId);
+  }
+}
+
 class Detail extends StatefulWidget {
   final Map<String, dynamic> item;
   const Detail({super.key, required this.item});
@@ -2797,6 +2798,60 @@ class Detail extends StatefulWidget {
 class _Detail extends State<Detail> {
   bool busy = false;
   int photoIndex = 0;
+  bool saved = false;
+  bool savingFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    final uid = db.auth.currentUser?.id;
+    if (uid == null || uid == widget.item['owner_id']) return;
+    try {
+      final row = await db.from('favorites')
+          .select('listing_id')
+          .eq('user_id', uid)
+          .eq('listing_id', widget.item['id'])
+          .maybeSingle();
+      if (mounted && db.auth.currentUser?.id == uid) {
+        setState(() => saved = row != null);
+      }
+    } catch (e) {
+      if (mounted) notice(context, friendly(e));
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (savingFavorite) return;
+    setState(() => savingFavorite = true);
+    try {
+      if (db.auth.currentUser == null) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+        if (!mounted || db.auth.currentUser == null) return;
+        await _loadFavorite();
+        if (!mounted) return;
+      }
+      await _setFavorite(widget.item['id'], !saved);
+      if (mounted) setState(() => saved = !saved);
+    } catch (e) {
+      if (mounted) notice(context, friendly(e));
+    } finally {
+      if (mounted) setState(() => savingFavorite = false);
+    }
+  }
+
+  Widget _favoriteButton() => IconButton(
+    tooltip: tr(saved ? 'Bỏ lưu món đồ' : 'Lưu món đồ'),
+    onPressed: savingFavorite ? null : _toggleFavorite,
+    icon: Icon(
+      saved ? Icons.favorite : Icons.favorite_border,
+      color: saved ? brand : muted,
+    ),
+  );
+
   Future<void> offerPrice() async {
     var offered = '';
     final price = await showDialog<int>(
@@ -3157,6 +3212,7 @@ class _Detail extends State<Detail> {
         title: const PassyText('Chi tiết món đồ'),
         actions: [
           IconButton(tooltip: tr('Sao chép liên kết'), onPressed: share, icon: const Icon(Icons.ios_share)),
+          if (wide && !mine && x['moderated'] != true) _favoriteButton(),
           if (!mine)
             IconButton(tooltip: tr('Báo cáo tin'), onPressed: report, icon: const Icon(Icons.flag_outlined)),
           const SizedBox(width: 8),
@@ -3196,6 +3252,8 @@ class _Detail extends State<Detail> {
                     ? action(x, mine)
                     : Row(
                         children: [
+                          _favoriteButton(),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
