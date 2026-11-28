@@ -137,7 +137,14 @@ class _OwnerConsoleState extends State<OwnerConsole> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Quản trị Passy')),
+    appBar: AppBar(title: const Text('Quản trị Passy'), actions: [
+      if (uid != null) TextButton.icon(
+        icon: const Icon(Icons.storage_outlined),
+        label: const Text('Dữ liệu'),
+        onPressed: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const OwnerDataPage())),
+      ),
+    ]),
     body: uid == null ? Center(child: FilledButton(
       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Login())),
       child: const Text('Đăng nhập quản trị'),
