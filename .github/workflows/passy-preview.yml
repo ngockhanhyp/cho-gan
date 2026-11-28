@@ -15,9 +15,9 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter test
       - run: flutter build web --no-web-resources-cdn --no-wasm-dry-run
       - uses: actions/upload-artifact@v4
         with:
           name: passy-web-preview
           path: build/web
+      - run: flutter test
