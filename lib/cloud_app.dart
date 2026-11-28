@@ -2364,8 +2364,9 @@ class _Compose extends State<Compose> {
   String category = 'Gia dụng';
   String condition = 'Đã qua sử dụng - tốt';
   String transactionMode = 'Bán';
-  Uint8List? photo;
-  String mime = 'image/jpeg';
+  final photos = <({Uint8List bytes, String mime})>[];
+  bool picking = false;
+  bool acceptsOffers = false;
   bool busy = false;
   @override
   void initState() {
@@ -2383,56 +2384,78 @@ class _Compose extends State<Compose> {
   }
 
   Future<void> pick() async {
+    if (picking || busy || photos.length >= 10) return;
+    setState(() => picking = true);
     try {
-      final f = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 80,
-      );
-      if (f == null) return;
-      final bytes = await f.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
-        if (mounted) notice(context, 'Ảnh tối đa 5 MB.');
-        return;
+      final picker = ImagePicker();
+      final remaining = 10 - photos.length;
+      final List<XFile> files;
+      if (remaining == 1) {
+        final file = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          imageQuality: 80,
+        );
+        files = file == null ? [] : [file];
+      } else {
+        files = await picker.pickMultiImage(
+          limit: remaining,
+          maxWidth: 1600,
+          imageQuality: 80,
+        );
       }
-      if (mounted) {
-        setState(() {
-          photo = bytes;
-          mime =
-              f.mimeType ??
-              (f.name.toLowerCase().endsWith('.png')
-                  ? 'image/png'
-                  : 'image/jpeg');
-        });
+      final selected = <({Uint8List bytes, String mime})>[];
+      var skipped = false;
+      for (final file in files.take(10 - photos.length)) {
+        final bytes = await file.readAsBytes();
+        final mime = switch (bytes) {
+          [0xff, 0xd8, 0xff, ...] => 'image/jpeg',
+          [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...] => 'image/png',
+          [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50, ...] =>
+            'image/webp',
+          _ => null,
+        };
+        if (mime == null || bytes.length > 5 * 1024 * 1024) {
+          skipped = true;
+          continue;
+        }
+        selected.add((bytes: bytes, mime: mime));
       }
+      if (!mounted) return;
+      setState(() => photos.addAll(selected));
+      if (skipped) notice(context, 'Chỉ nhận ảnh JPG, PNG hoặc WebP tối đa 5 MB.');
     } catch (e) {
       if (mounted) notice(context, friendly(e));
+    } finally {
+      if (mounted) setState(() => picking = false);
     }
   }
 
   Future<void> submit() async {
-    if (!form.currentState!.validate()) return;
-    if (photo == null) {
+    if (busy || picking || !form.currentState!.validate()) return;
+    if (photos.isEmpty) {
       notice(context, 'Hãy thêm ảnh thật của món đồ.');
       return;
     }
     setState(() => busy = true);
-    String? path;
+    final paths = <String>[];
     try {
       final uid = db.auth.currentUser!.id;
-      path =
-          '$uid/${DateTime.now().microsecondsSinceEpoch}.${mime == 'image/png'
-              ? 'png'
-              : mime == 'image/webp'
-              ? 'webp'
-              : 'jpg'}';
-      await db.storage
-          .from('listing-images')
-          .uploadBinary(
-            path,
-            photo!,
-            fileOptions: FileOptions(contentType: mime),
-          );
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+      for (final (index, photo) in photos.indexed) {
+        final extension = switch (photo.mime) {
+          'image/png' => 'png',
+          'image/webp' => 'webp',
+          _ => 'jpg',
+        };
+        final path = '$uid/$stamp-$index.$extension';
+        await db.storage.from('listing-images').uploadBinary(
+          path,
+          photo.bytes,
+          fileOptions: FileOptions(contentType: photo.mime),
+        );
+        paths.add(path);
+      }
       final meetingPoint = pickup.text.trim();
       await db.from('listings').insert({
         'owner_id': uid,
@@ -2445,13 +2468,15 @@ class _Compose extends State<Compose> {
         'price': transactionMode == 'Quyên góp' ? 0 : int.parse(price.text),
         'category': category,
         'area': widget.area,
-        'image_path': path,
+        'image_path': paths.first,
+        if (paths.length > 1) 'additional_image_paths': paths.skip(1).toList(),
+        if (acceptsOffers && transactionMode == 'Bán') 'accepts_offers': true,
       });
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (path != null) {
+      if (paths.isNotEmpty) {
         try {
-          await db.storage.from('listing-images').remove([path]);
+          await db.storage.from('listing-images').remove(paths);
         } catch (_) {}
       }
       if (mounted) notice(context, friendly(e));
@@ -2478,7 +2503,7 @@ class _Compose extends State<Compose> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: busy ? null : submit,
+                onPressed: busy || picking ? null : submit,
                 child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
               ),
             ),
@@ -2492,52 +2517,71 @@ class _Compose extends State<Compose> {
         maxWidth: 680,
         children: [
               label('Ảnh món đồ'),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: busy ? null : pick,
-                child: Container(
-                  height: photo == null ? 180 : 280,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: soft,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: photo == null ? const Color(0xFFD9DADC) : line),
-                  ),
-                  child: photo == null
-                      ? const Column(
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    if (photos.length < 10)
+                      OutlinedButton(
+                        onPressed: busy || picking ? null : pick,
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_a_photo_rounded, size: 40, color: brand),
-                            SizedBox(height: 10),
-                            PassyText('Thêm ảnh thật của món đồ', style: TextStyle(fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            PassyText('JPG hoặc PNG, tối đa 5 MB', style: TextStyle(color: muted, fontSize: 13)),
+                            const Icon(Icons.add_a_photo_outlined),
+                            const SizedBox(height: 6),
+                            Text('${photos.length}/10'),
                           ],
-                        )
-                      : Stack(
-                          fit: StackFit.expand,
+                        ),
+                      ),
+                    for (final (index, photo) in photos.indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Stack(
                           children: [
-                            Image.memory(photo!, fit: BoxFit.cover),
-                            Positioned(
-                              right: 12,
-                              bottom: 12,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: ink,
-                                  minimumSize: const Size(0, 40),
+                            Tooltip(
+                              message: index == 0 ? tr('Ảnh bìa') : tr('Đặt làm ảnh bìa'),
+                              child: InkWell(
+                                onTap: busy || picking || index == 0
+                                    ? null
+                                    : () => setState(() {
+                                        photos.insert(0, photos.removeAt(index));
+                                      }),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.memory(
+                                    photo.bytes,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
-                                onPressed: busy ? null : pick,
-                                icon: const Icon(Icons.photo_library_outlined, size: 18),
-                                label: const PassyText('Đổi ảnh'),
+                              ),
+                            ),
+                            if (index == 0)
+                              const Positioned(
+                                bottom: 6,
+                                left: 6,
+                                child: Chip(label: PassyText('Ảnh bìa')),
+                              ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: IconButton.filled(
+                                icon: const Icon(Icons.close, size: 17),
+                                onPressed: busy || picking
+                                    ? null
+                                    : () => setState(() => photos.removeAt(index)),
+                                tooltip: tr('Xóa ảnh'),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              label('Tên món đồ'),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: title,
                 maxLength: 160,
@@ -2623,6 +2667,15 @@ class _Compose extends State<Compose> {
                         : null;
                   },
                 ),
+                CheckboxListTile(
+                  value: acceptsOffers,
+                  onChanged: busy ? null : (value) {
+                    setState(() => acceptsOffers = value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const PassyText('Nhận đề xuất giá'),
+                ),
               ] else
                 const Padding(
                   padding: EdgeInsets.only(top: 18),
@@ -2633,7 +2686,7 @@ class _Compose extends State<Compose> {
               TextFormField(
                 controller: description,
                 maxLines: 6,
-                maxLength: 3950,
+                maxLength: 3800,
                 decoration:  InputDecoration(
                   hintText:
                       tr('Thời gian đã dùng và khuyết điểm (nếu có)…'),
@@ -2683,7 +2736,48 @@ class Detail extends StatefulWidget {
 
 class _Detail extends State<Detail> {
   bool busy = false;
-  Future<void> contact() async {
+  int photoIndex = 0;
+  Future<void> offerPrice() async {
+    var offered = '';
+    final price = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final amount = int.tryParse(offered);
+          final valid = amount != null && amount > 0 && amount < widget.item['price'];
+          return AlertDialog(
+            title: const PassyText('Đề xuất giá'),
+            content: TextField(
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (value) => setDialogState(() => offered = value),
+              decoration: InputDecoration(
+                labelText: tr('Giá bạn muốn mua'),
+                suffixText: 'đ',
+                helperText: '${tr('Giá đăng')}: ${money(widget.item['price'])}',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const PassyText('Hủy'),
+              ),
+              FilledButton(
+                onPressed: valid ? () => Navigator.pop(context, amount) : null,
+                child: const PassyText('Tiếp tục vào chat'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (price != null && mounted) {
+      await contact(draft: '${tr('Mình muốn đề xuất giá')}: ${money(price)}');
+    }
+  }
+
+  Future<void> contact({String draft = ''}) async {
     if (db.auth.currentUser == null) {
       await Navigator.push(
         context,
@@ -2712,7 +2806,7 @@ class _Detail extends State<Detail> {
       if (mounted) {
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => Chat(thread: t!)),
+          MaterialPageRoute(builder: (_) => Chat(thread: t!, draft: draft)),
         );
       }
     } catch (e) {
@@ -2861,11 +2955,36 @@ class _Detail extends State<Detail> {
     final seller = x['profiles']?['name'] ?? 'Thành viên';
     final description = x['description'] as String? ?? '';
     final pickup = _suggestedPickup(description);
+    final canOffer = !mine && x['moderated'] != true &&
+        x['accepts_offers'] == true && x['status'] == 'available' &&
+        (x['price'] as num? ?? 0) > 0;
+    final imagePaths = [
+      x['image_path'] as String? ?? '',
+      ...((x['additional_image_paths'] as List?) ?? const []).whereType<String>(),
+    ];
     final photo = ClipRRect(
       borderRadius: BorderRadius.circular(wide ? 20 : 0),
       child: AspectRatio(
         aspectRatio: 1,
-        child: ListingImage(path: x['image_path'] ?? '', size: double.infinity),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            PageView.builder(
+              itemCount: imagePaths.length,
+              onPageChanged: (index) => setState(() => photoIndex = index),
+              itemBuilder: (_, index) => ListingImage(
+                path: imagePaths[index],
+                size: double.infinity,
+              ),
+            ),
+            if (imagePaths.length > 1)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Chip(label: Text('${photoIndex + 1}/${imagePaths.length}')),
+              ),
+          ],
+        ),
       ),
     );
     final sellerCard = InkWell(
@@ -2965,7 +3084,12 @@ class _Detail extends State<Detail> {
             ],
           ),
         ),
-        if (wide) ...[const SizedBox(height: 24), action(x, mine)],
+        if (wide) ...[
+          const SizedBox(height: 24),
+          action(x, mine),
+          if (canOffer)
+            TextButton(onPressed: busy ? null : offerPrice, child: const PassyText('Đề xuất giá')),
+        ],
       ],
     );
     return Scaffold(
@@ -3021,6 +3145,12 @@ class _Detail extends State<Detail> {
                                   money(x['price']),
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                                 ),
+                                if (canOffer)
+                                  TextButton(
+                                    onPressed: busy ? null : offerPrice,
+                                    style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                                    child: const PassyText('Đề xuất giá'),
+                                  ),
                               ],
                             ),
                           ),
@@ -3036,13 +3166,14 @@ class _Detail extends State<Detail> {
 class Chat extends StatefulWidget {
   final Map<String, dynamic> thread;
   final VoidCallback? onRead;
-  const Chat({super.key, required this.thread, this.onRead});
+  final String draft;
+  const Chat({super.key, required this.thread, this.onRead, this.draft = ''});
   @override
   State<Chat> createState() => _Chat();
 }
 
 class _Chat extends State<Chat> {
-  final input = TextEditingController();
+  late final input = TextEditingController(text: widget.draft);
   List<Map<String, dynamic>> messages = [];
   Timer? timer;
   bool sending = false, fetching = false;
