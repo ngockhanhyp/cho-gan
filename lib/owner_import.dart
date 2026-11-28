@@ -1,11 +1,15 @@
 part of 'cloud_app.dart';
 
 const _importColumns = ['title', 'description', 'price', 'category', 'area', 'image_url'];
-const _importAliases = {
-  'tiêu đề': 'title', 'tên món đồ': 'title', 'nội dung': 'description',
-  'mô tả': 'description', 'giá': 'price', 'danh mục': 'category',
-  'khu vực': 'area', 'ảnh': 'image_url', 'link ảnh': 'image_url',
+const _importLabels = {
+  'title': 'Tiêu đề', 'description': 'Mô tả', 'price': 'Giá (đồng)',
+  'category': 'Danh mục', 'area': 'Khu vực', 'image_url': 'Link ảnh',
 };
+const _importSeparators = {
+  'title': ' ', 'description': '\n', 'area': ', ', 'image_url': '\n',
+};
+
+String _importCell(Object? value) => value?.toString().replaceFirst('\uFEFF', '').trim() ?? '';
 
 String? _listingImageMime(Uint8List bytes) => switch (bytes) {
   [0xff, 0xd8, 0xff, ...] => 'image/jpeg',
@@ -25,11 +29,41 @@ String _newOwnerBatchId() {
 
 class _ImportListing {
   final int line;
-  final Map<String, dynamic> values;
-  final List<Uri> images;
+  final Map<String, String> fields;
   final paths = <String>[];
 
-  _ImportListing(this.line, this.values, this.images);
+  _ImportListing(this.line, this.fields);
+
+  int? get price => int.tryParse(fields['price'] ?? '');
+
+  List<Uri?> get imageLinks => fields['image_url']!
+      .split(RegExp(r'[|\n]')).map((value) => value.trim()).where((value) => value.isNotEmpty)
+      .map(Uri.tryParse).toList();
+
+  List<String> get issues {
+    final links = imageLinks;
+    final amount = price;
+    final titleLength = fields['title']!.runes.length;
+    final descriptionLength = fields['description']!.runes.length;
+    final areaLength = fields['area']!.runes.length;
+    final category = fields['category']!;
+    return [
+      if (titleLength < 4 || titleLength > 160) 'tiêu đề 4–160 ký tự',
+      if (descriptionLength < 10 || descriptionLength > 4000) 'mô tả 10–4.000 ký tự',
+      if (amount == null || amount < 0 || amount > 100000000000) 'giá nguyên bằng đồng',
+      if (!categoryIcons.containsKey(category) || category == 'Tất cả') 'danh mục hợp lệ',
+      if (areaLength < 1 || areaLength > 100) 'khu vực 1–100 ký tự',
+      if (links.isEmpty || links.length > 10 || links.any((uri) =>
+          uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty))
+        '1–10 link ảnh HTTPS',
+    ];
+  }
+
+  Map<String, dynamic> get payload => {
+    for (final field in _importColumns)
+      if (field != 'image_url') field: field == 'price' ? price : fields[field],
+    'photos': paths,
+  };
 }
 
 class OwnerImportPage extends StatefulWidget {
@@ -44,7 +78,11 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
   final sheetLink = TextEditingController();
   final googleClient = TextEditingController();
   final rows = <_ImportListing>[];
-  final errors = <String>[];
+  final mapping = {for (final field in _importColumns) field: <int>[]};
+  final stepKey = GlobalKey();
+  List<List<dynamic>> source = [];
+  String? readError;
+  bool showMapping = false;
   bool busy = false;
   int posted = 0;
   String progress = '';
@@ -70,64 +108,195 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
     super.dispose();
   }
 
-  void _discardUploads() {
+  void _discardUploads([Iterable<_ImportListing>? drafts]) {
     if (submitted || db.auth.currentUser?.id != ownerId) return;
-    final paths = [for (final row in rows) ...row.paths];
+    final paths = [for (final row in drafts ?? rows) ...row.paths];
     if (paths.isNotEmpty) {
       unawaited(db.storage.from('listing-images').remove(paths).then<void>((_) {}, onError: (_) {}));
     }
   }
 
-  void _parse(String json) {
+  void _goToStep() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = stepKey.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 240), alignment: 0.03);
+      }
+    });
+  }
+
+  void _loadSource(String json) {
     final workbook = List<List<dynamic>>.from(jsonDecode(json));
-    if (workbook.length < 2) throw const FormatException('Bảng chưa có dữ liệu.');
+    if (workbook.length < 2 || workbook.skip(1).every((row) =>
+        row.every((value) => _importCell(value).isEmpty))) {
+      throw const FormatException('Bảng chưa có dòng dữ liệu.');
+    }
     if (workbook.length > 51) throw const FormatException('Mỗi lô nhận tối đa 50 tin.');
-    String cell(Object? value) => value?.toString().replaceFirst('\uFEFF', '').trim() ?? '';
-    final headers = workbook.first.map((value) {
-      final normalized = cell(value).toLowerCase();
-      return _importAliases[normalized] ?? normalized;
-    }).toList();
-    if (!_importColumns.every(headers.contains) || headers.where(_importColumns.contains).toSet().length !=
-        headers.where(_importColumns.contains).length) {
-      throw const FormatException('Dòng đầu phải có đủ sáu tên cột khác nhau theo mẫu.');
-    }
-    rows.clear();
-    errors.clear();
-    for (final (index, row) in workbook.skip(1).indexed) {
-      if (row.every((value) => cell(value).isEmpty)) continue;
-      final line = index + 2;
-      String field(String name) {
-        final column = headers.indexOf(name);
-        return column < row.length ? cell(row[column]) : '';
+    _discardUploads();
+    setState(() {
+      source = workbook;
+      rows.clear();
+      for (final columns in mapping.values) {
+        columns.clear();
       }
-      final title = field('title');
-      final description = field('description');
-      final price = int.tryParse(field('price'));
-      final category = field('category');
-      final area = field('area');
-      final urls = field('image_url').split(RegExp(r'[|\n]'))
-          .map((text) => Uri.tryParse(text.trim())).toList();
-      final issues = <String>[
-        if (title.length < 4 || title.length > 160) 'tiêu đề 4–160 ký tự',
-        if (description.length < 10 || description.length > 4000) 'mô tả 10–4.000 ký tự',
-        if (price == null || price < 0 || price > 100000000000) 'giá nguyên bằng đồng',
-        if (!categoryIcons.containsKey(category) || category == 'Tất cả') 'danh mục hợp lệ',
-        if (area.isEmpty || area.length > 100) 'khu vực',
-        if (urls.length > 10 || urls.any((uri) =>
-            uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty))
-          '1–10 link ảnh HTTPS',
-      ];
-      if (issues.isNotEmpty) {
-        errors.add('Dòng $line · ${issues.join(', ')}');
-      } else {
-        rows.add(_ImportListing(line, {
-          'title': title, 'description': description, 'price': price,
-          'category': category, 'area': area,
-        }, urls.cast<Uri>()));
-      }
+      showMapping = true;
+      posted = 0;
+    });
+    _goToStep();
+  }
+
+  String _columnLabel(int index) {
+    var number = index + 1;
+    var letter = '';
+    while (number > 0) {
+      number--;
+      letter = String.fromCharCode(65 + number % 26) + letter;
+      number ~/= 26;
     }
-    if (rows.isEmpty && errors.isEmpty) errors.add('Bảng chưa có tin đăng.');
-    batchId = _newOwnerBatchId();
+    final header = index < source.first.length ? _importCell(source.first[index]) : '';
+    return header.isEmpty ? 'Cột $letter' : '$letter · $header';
+  }
+
+  void _makePreview() {
+    _discardUploads();
+    setState(() {
+      rows.clear();
+      for (final (index, sourceRow) in source.skip(1).indexed) {
+        if (sourceRow.every((value) => _importCell(value).isEmpty)) continue;
+        rows.add(_ImportListing(index + 2, {
+          for (final field in _importColumns)
+            field: mapping[field]!.where((column) => column < sourceRow.length)
+                .map((column) => _importCell(sourceRow[column])).where((value) => value.isNotEmpty)
+                .join(_importSeparators[field] ?? ''),
+        }));
+      }
+      showMapping = false;
+      batchId = _newOwnerBatchId();
+    });
+    _goToStep();
+  }
+
+  Future<void> _editDraft(_ImportListing row) async {
+    final values = Map<String, String>.of(row.fields);
+    final edited = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: Text('Sửa tin · Dòng ${row.line}'),
+      content: SizedBox(width: 560, child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final field in _importColumns)
+            Padding(padding: const EdgeInsets.only(bottom: 12), child: TextFormField(
+              initialValue: values[field],
+              decoration: InputDecoration(labelText: _importLabels[field],
+                helperText: field == 'image_url' ? 'Mỗi link một dòng' : null),
+              minLines: field == 'description' ? 4 : 1,
+              maxLines: field == 'description' || field == 'image_url' ? 8 : 1,
+              keyboardType: field == 'price' ? TextInputType.number : TextInputType.text,
+              onChanged: (value) => values[field] = value.trim(),
+            )),
+        ]),
+      )),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Hủy')),
+        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Lưu bản nháp')),
+      ],
+    ));
+    if (!mounted || edited != true) return;
+    if (values['image_url'] != row.fields['image_url']) {
+      _discardUploads([row]);
+      row.paths.clear();
+    }
+    setState(() => row.fields.addAll(values));
+  }
+
+  Widget _columnMapping(int width) => Column(
+    key: stepKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Ghép cột với trường Passy', style: Theme.of(context).textTheme.titleLarge),
+      const Text('Chọn cột cho từng trường. Với mô tả, mỗi cột đã chọn sẽ nằm trên một dòng theo thứ tự bên dưới. Trường để trống có thể điền trong bản xem trước.'),
+      for (final field in _importColumns) ...[
+        const SizedBox(height: 10),
+        _fieldMapping(field, width),
+      ],
+      const SizedBox(height: 12),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        FilledButton(onPressed: busy || !mapping.values.any((columns) => columns.isNotEmpty)
+            ? null : _makePreview, child: Text(rows.isEmpty ? 'Xem trước tin đăng' : 'Tạo lại bản xem trước')),
+        if (rows.isNotEmpty) TextButton(onPressed: busy ? null : () {
+          setState(() => showMapping = false);
+          _goToStep();
+        }, child: const Text('Quay lại bản nháp')),
+      ]),
+      if (rows.isNotEmpty)
+        const Text('Tạo lại bản xem trước sẽ áp dụng cách ghép mới và thay thế các chỉnh sửa từng tin.'),
+    ],
+  );
+
+  Widget _fieldMapping(String field, int width) {
+    final columns = mapping[field]!;
+    final multi = _importSeparators.containsKey(field);
+    final available = [for (var i = 0; i < width; i++) if (!columns.contains(i)) i];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(_importLabels[field]!, style: Theme.of(context).textTheme.titleSmall),
+      for (final (index, column) in columns.indexed)
+        Row(children: [
+          Expanded(child: Text(_columnLabel(column), maxLines: 2, overflow: TextOverflow.ellipsis)),
+          if (index > 0)
+            IconButton(tooltip: 'Đưa cột lên trên', icon: const Icon(Icons.arrow_upward),
+              onPressed: busy ? null : () => setState(() {
+                columns.removeAt(index);
+                columns.insert(index - 1, column);
+              })),
+          IconButton(tooltip: 'Bỏ cột', icon: const Icon(Icons.close),
+            onPressed: busy ? null : () => setState(() => columns.removeAt(index))),
+        ]),
+      if ((multi || columns.isEmpty) && available.isNotEmpty)
+        DropdownButton<int>(
+          isExpanded: true,
+          hint: Text(columns.isEmpty ? 'Chọn cột nguồn' : 'Ghép thêm cột'),
+          items: [for (final column in available) DropdownMenuItem(
+            value: column, child: Text(_columnLabel(column), overflow: TextOverflow.ellipsis))],
+          onChanged: busy ? null : (column) {
+            if (column != null) setState(() => columns.add(column));
+          },
+        ),
+    ]);
+  }
+
+  Widget _preview() {
+    final invalid = rows.where((row) => row.issues.isNotEmpty).length;
+    return Column(key: stepKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Bản xem trước · ${rows.length} tin', style: Theme.of(context).textTheme.titleLarge),
+      if (invalid > 0) Text('$invalid tin cần bổ sung hoặc chỉnh sửa trước khi đăng.'),
+      if (!submitted)
+        Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+          onPressed: busy ? null : () {
+            setState(() => showMapping = true);
+            _goToStep();
+          },
+          icon: const Icon(Icons.swap_horiz), label: const Text('Đổi cách ghép cột'),
+        )),
+      for (final row in rows)
+        Card(child: ListTile(
+          title: Text('Dòng ${row.line} · ${row.fields['title']!.isEmpty ? 'Chưa có tiêu đề' : row.fields['title']}'),
+          subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text([
+              if (row.price != null) money(row.price),
+              if (row.fields['category']!.isNotEmpty) row.fields['category'],
+              if (row.fields['area']!.isNotEmpty) row.fields['area'],
+              '${row.imageLinks.length} ảnh',
+            ].join(' · ')),
+            if (row.fields['description']!.isNotEmpty)
+              Text(row.fields['description']!, maxLines: 4, overflow: TextOverflow.ellipsis),
+            if (row.issues.isNotEmpty)
+              Text('Cần kiểm tra ${row.issues.join(', ')}.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ]),
+          trailing: IconButton(tooltip: 'Sửa tin dòng ${row.line}', icon: const Icon(Icons.edit_outlined),
+            onPressed: busy || submitted ? null : () => _editDraft(row)),
+          onTap: busy || submitted ? null : () => _editDraft(row),
+        )),
+      const SizedBox(height: 12),
+      FilledButton(onPressed: busy || invalid > 0 ? null : _publish,
+        child: Text(submitted ? 'Thử lại cùng lô' : 'Xác nhận đăng ${rows.length} tin')),
+    ]);
   }
 
   Future<void> _read(bool fromGoogle, {bool privateSheet = false}) async {
@@ -140,7 +309,7 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       notice(context, 'Nhập OAuth Client ID của Passy để mở bảng tính riêng tư.');
       return;
     }
-    setState(() { busy = true; progress = 'Đang đọc bảng…'; });
+    setState(() { busy = true; progress = 'Đang đọc bảng…'; readError = null; });
     try {
       final clientId = googleClient.text.trim();
       final link = sheetLink.text.trim();
@@ -152,20 +321,16 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('passy_sheets_oauth_client', clientId);
       }
-      if (mounted) {
-        _discardUploads();
-        setState(() { posted = 0; _parse(json); });
-      }
+      if (mounted) _loadSource(json);
     } on FormatException catch (error) {
-      if (mounted) setState(() { rows.clear(); errors..clear()..add(error.message); });
+      if (mounted) setState(() => readError = error.message);
     } catch (_) {
       if (mounted) setState(() {
-        rows.clear();
-        errors..clear()..add(fromGoogle
+        readError = fromGoogle
           ? privateSheet
             ? 'Không đọc được bảng riêng tư. Kiểm tra quyền xem, Client ID và giới hạn 50 dòng.'
             : 'Không đọc được bảng. Kiểm tra link đúng tab, quyền “Bất kỳ ai có đường liên kết” và giới hạn 50 dòng.'
-          : 'Không đọc được tệp. Hãy chọn XLSX hoặc CSV tối đa 5 MB và 50 dòng.');
+          : 'Không đọc được tệp. Hãy chọn XLSX hoặc CSV tối đa 5 MB và 50 dòng.';
       });
     } finally {
       if (mounted) setState(() { busy = false; progress = ''; });
@@ -193,7 +358,7 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
   }
 
   Future<void> _publish() async {
-    if (busy || rows.isEmpty || errors.isNotEmpty || ownerId == null) return;
+    if (busy || rows.isEmpty || rows.any((row) => row.issues.isNotEmpty) || ownerId == null) return;
     final approved = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
       title: Text('Đăng ${rows.length} tin lên chợ?'),
       content: const Text('Tin hiển thị công khai và đứng tên tài khoản chủ đang đăng nhập.'),
@@ -207,11 +372,12 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
     try {
       if (await db.rpc('is_passy_owner') != true) throw const FormatException('Tài khoản thiếu quyền chủ Passy.');
       for (final row in rows) {
-        for (var index = row.paths.length; index < row.images.length; index++) {
+        final images = row.imageLinks.cast<Uri>();
+        for (var index = row.paths.length; index < images.length; index++) {
           if (!mounted || db.auth.currentUser?.id != ownerId) return;
-          setState(() => progress = 'Dòng ${row.line} · Đang tải ảnh ${index + 1}/${row.images.length}');
+          setState(() => progress = 'Dòng ${row.line} · Đang tải ảnh ${index + 1}/${images.length}');
           try {
-            final bytes = await _download(row.images[index]);
+            final bytes = await _download(images[index]);
             final mime = _listingImageMime(bytes);
             if (mime == null) throw const FormatException('Ảnh phải là JPG, PNG hoặc WebP.');
             final ext = {'image/png': 'png', 'image/webp': 'webp'}[mime] ?? 'jpg';
@@ -229,11 +395,12 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       setState(() { submitted = true; progress = 'Đang đăng cả lô…'; });
       final count = await db.rpc('owner_import_listings', params: {
         'batch': batchId,
-        'listings': [for (final row in rows) {...row.values, 'photos': row.paths}],
+        'listings': [for (final row in rows) row.payload],
       });
       if (mounted) setState(() {
         posted = count as int;
         rows.clear();
+        source = [];
         submitted = false;
       });
     } on FormatException catch (error) {
@@ -278,17 +445,14 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       ),
       if (busy) ...[const LinearProgressIndicator(), Text(progress)],
       if (posted > 0) Text('Đã đăng $posted tin.'),
-      for (final error in errors) ListTile(leading: const Icon(Icons.error_outline), title: Text(error)),
-      if (rows.isNotEmpty) ...[
+      if (readError != null)
+        ListTile(leading: const Icon(Icons.error_outline), title: Text(readError!)),
+      if (source.isNotEmpty) ...[
         const SizedBox(height: 16),
-        Text('${rows.length} tin trong bản xem trước'),
-        for (final row in rows)
-          ListTile(
-            title: Text('Dòng ${row.line} · ${row.values['title']}'),
-            subtitle: Text('${money(row.values['price'])} · ${row.values['category']} · ${row.values['area']} · ${row.images.length} ảnh'),
-          ),
-        FilledButton(onPressed: busy || errors.isNotEmpty ? null : _publish,
-          child: Text(submitted ? 'Thử lại cùng lô' : 'Xác nhận đăng ${rows.length} tin')),
+        if (showMapping)
+          _columnMapping(source.fold<int>(0, (width, row) => row.length > width ? row.length : width))
+        else
+          _preview(),
       ],
     ]),
   ));
