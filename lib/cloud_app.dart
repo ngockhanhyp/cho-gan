@@ -19,6 +19,7 @@ import 'location_picker.dart';
 import 'social_auth.dart';
 
 part 'trust.dart';
+part 'owner_console.dart';
 part 'community.dart';
 part 'listing_edit.dart';
 part 'market_map.dart';
@@ -394,6 +395,7 @@ class ChoGan extends StatelessWidget {
     builder: (context, child) => ColoredBox(color: Colors.white, child: child!),
     onGenerateRoute: (settings) {
       final n = settings.name ?? '';
+      if (n == '/admin') return MaterialPageRoute(settings: settings, builder: (_) => const OwnerConsole());
       if (n.startsWith('/listing/')) {
         return MaterialPageRoute(
           builder: (_) => ListingLink(id: n.substring(9)),
@@ -1730,6 +1732,7 @@ class _Home extends State<Home> {
                 ),
               ),
               const Divider(),
+              menu(Icons.dashboard_outlined, 'Quản trị Passy', () => Navigator.pushNamed(context, '/admin')),
               menu(Icons.logout_rounded, 'Đăng xuất', () async {
                 await db.auth.signOut();
                 refresh();
@@ -3358,6 +3361,7 @@ class _Chat extends State<Chat> {
         'conversation_id': widget.thread['id'],
         'sender_id': db.auth.currentUser!.id,
         'body': body,
+        'admin_notice_shown': true,
       });
       if (!mounted) return;
       if (input.text.trim() == body) input.clear();
@@ -3491,6 +3495,10 @@ class _Chat extends State<Chat> {
                         );
                       }).toList(),
                     ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: PassyText('Chủ nền tảng có thể xem tin nhắn bạn gửi để quản lý giao dịch và xử lý vi phạm.', style: TextStyle(fontSize: 12)),
             ),
             SafeArea(
               child: Container(
