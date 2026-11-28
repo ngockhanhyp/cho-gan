@@ -199,7 +199,10 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       content: SizedBox(width: 560, child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           for (final field in _importColumns)
-            Padding(padding: const EdgeInsets.only(bottom: 12), child: TextFormField(
+            if (field == 'category')
+              Padding(padding: const EdgeInsets.only(bottom: 12), child:
+                _categoryPicker(values[field]!, (value) => values[field] = value))
+            else Padding(padding: const EdgeInsets.only(bottom: 12), child: TextFormField(
               initialValue: values[field],
               decoration: InputDecoration(labelText: _importLabels[field],
                 helperText: field == 'image_url' ? 'Mỗi link một dòng' : null),
@@ -295,6 +298,23 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
     ]);
   }
 
+  Widget _categoryPicker(String current, ValueChanged<String> onChanged) {
+    final categories = categoryIcons.keys.where((name) => name != 'Tất cả').toList();
+    return DropdownButtonFormField<String>(
+      initialValue: categories.contains(current) ? current : null,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: 'Danh mục Passy',
+        helperText: current.isNotEmpty && !categories.contains(current) ? 'Danh mục từ bảng: $current' : null),
+      hint: const Text('Chọn danh mục có sẵn'),
+      items: [
+        for (final name in categories) DropdownMenuItem(value: name, child: Text(name)),
+      ],
+      onChanged: busy || submitted ? null : (value) {
+        if (value != null) onChanged(value);
+      },
+    );
+  }
+
   Widget _preview() {
     final invalid = rows.where((row) => row.issues.isNotEmpty).length;
     return Column(key: stepKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -309,7 +329,8 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
           icon: const Icon(Icons.swap_horiz), label: const Text('Đổi cách ghép cột'),
         )),
       for (final row in rows)
-        Card(child: ListTile(
+        Card(child: Column(children: [
+        ListTile(
           title: Text('Dòng ${row.line} · ${row.fields['title']!.isEmpty ? 'Chưa có tiêu đề' : row.fields['title']}'),
           subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text([
@@ -327,7 +348,12 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
           trailing: IconButton(tooltip: 'Sửa tin dòng ${row.line}', icon: const Icon(Icons.edit_outlined),
             onPressed: busy || submitted ? null : () => _editDraft(row)),
           onTap: busy || submitted ? null : () => _editDraft(row),
-        )),
+        ),
+        if (!categoryIcons.containsKey(row.fields['category']) || row.fields['category'] == 'Tất cả')
+          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: _categoryPicker(row.fields['category']!, (value) =>
+              setState(() => row.fields['category'] = value))),
+        ])),
       const SizedBox(height: 12),
       FilledButton(onPressed: busy || invalid > 0 ? null : _publish,
         child: Text(submitted ? 'Thử lại cùng lô' : 'Xác nhận đăng ${rows.length} tin')),
