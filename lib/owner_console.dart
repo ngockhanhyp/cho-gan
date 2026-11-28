@@ -91,6 +91,12 @@ class _OwnerConsoleState extends State<OwnerConsole> {
         return Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960),
           child: ListView(padding: const EdgeInsets.all(16), children: [
             Wrap(spacing: 8, runSpacing: 6, children: [
+              ActionChip(
+                avatar: const Icon(Icons.flag_outlined),
+                label: const Text('Báo cáo'),
+                onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ModerationPage())),
+              ),
               for (final name in ['Tin đăng','Thành viên','Hội thoại','Nhật ký'])
                 ChoiceChip(label: Text(name), selected: section == name,
                   onSelected: (_) => select(name)),
