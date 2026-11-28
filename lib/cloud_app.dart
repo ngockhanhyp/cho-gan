@@ -491,7 +491,7 @@ class _Home extends State<Home> {
         f = rows.map((e) => e['listing_id'] as String).toSet();
         t = await db
             .from('conversations')
-            .select('*,listings(title,price,image_path)')
+            .select('*,listings(title,price,image_path,description)')
             .order('created_at', ascending: false);
       }
       if (mounted) {
@@ -538,18 +538,7 @@ class _Home extends State<Home> {
   Future<void> favorite(Map<String, dynamic> x) async {
     if (!await login()) return;
     try {
-      if (favorites.contains(x['id'])) {
-        await db
-            .from('favorites')
-            .delete()
-            .eq('user_id', db.auth.currentUser!.id)
-            .eq('listing_id', x['id']);
-      } else {
-        await db.from('favorites').insert({
-          'user_id': db.auth.currentUser!.id,
-          'listing_id': x['id'],
-        });
-      }
+      await _setFavorite(x['id'], !favorites.contains(x['id']));
       await refresh();
     } catch (e) {
       if (mounted) notice(context, friendly(e));
@@ -1149,6 +1138,8 @@ class _Home extends State<Home> {
             ],
           ),
         )
+      else if (!wide)
+        ...shown.map(marketRow)
       else
         LayoutBuilder(
           builder: (_, box) {
@@ -1181,6 +1172,70 @@ class _Home extends State<Home> {
     return '${t.day}/${t.month}/${t.year}';
   }
 
+  Future<void> openListing(Map<String, dynamic> listing) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => Detail(item: listing)),
+    );
+    if (mounted) await refresh();
+  }
+
+  Widget marketRow(Map<String, dynamic> listing) {
+    final saved = favorites.contains(listing['id']);
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => openListing(listing),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListingImage(path: listing['image_path'] ?? '', size: 96),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        listing['title'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [listing['area'], ago(listing['created_at'])]
+                            .where((part) => part != null && part != '')
+                            .join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: muted),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(money(listing['price']), style: const TextStyle(fontWeight: FontWeight.w900)),
+                      if (listing['status'] != 'available')
+                        StatusBadge(listing['status']),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: tr(saved ? 'Bỏ lưu món đồ' : 'Lưu món đồ'),
+                  onPressed: () => favorite(listing),
+                  icon: Icon(
+                    saved ? Icons.favorite : Icons.favorite_border,
+                    color: saved ? brand : muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
   Widget card(Map<String, dynamic> x) {
     final saved = favorites.contains(x['id']);
     final status = x['status'] == 'sold'
@@ -1190,13 +1245,7 @@ class _Home extends State<Home> {
         : null;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => Detail(item: x)),
-        );
-        refresh();
-      },
+      onTap: () => openListing(x),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2358,18 +2407,33 @@ class Compose extends StatefulWidget {
 class _Compose extends State<Compose> {
   final title = TextEditingController(),
       price = TextEditingController(),
-      description = TextEditingController();
+      description = TextEditingController(),
+      pickup = TextEditingController();
   final form = GlobalKey<FormState>();
   String category = 'Gia dụng';
   String condition = 'Đã qua sử dụng - tốt';
   String transactionMode = 'Bán';
-  Uint8List? photo;
-  String mime = 'image/jpeg';
+  final photos = <({Uint8List bytes, String mime})>[];
+  bool picking = false;
+  static const galleryLimit = 10;
+  bool enhancedListings = false;
+  bool acceptsOffers = false;
+  int get photoLimit => enhancedListings ? galleryLimit : 1;
   bool busy = false;
   @override
   void initState() {
     super.initState();
     if (widget.donation) transactionMode = 'Quyên góp';
+    _checkListingFields();
+  }
+
+  Future<void> _checkListingFields() async {
+    try {
+      await db.from('listings').select('additional_image_paths,accepts_offers').limit(0);
+      if (mounted) setState(() => enhancedListings = true);
+    } catch (_) {
+      // Deploying the web app before the listing migration still allows single-photo posts.
+    }
   }
 
   @override
@@ -2377,74 +2441,104 @@ class _Compose extends State<Compose> {
     title.dispose();
     price.dispose();
     description.dispose();
+    pickup.dispose();
     super.dispose();
   }
 
   Future<void> pick() async {
+    if (picking || busy || photos.length >= photoLimit) return;
+    setState(() => picking = true);
     try {
-      final f = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 80,
-      );
-      if (f == null) return;
-      final bytes = await f.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
-        if (mounted) notice(context, 'Ảnh tối đa 5 MB.');
-        return;
+      final picker = ImagePicker();
+      final remaining = photoLimit - photos.length;
+      final List<XFile> files;
+      if (remaining == 1) {
+        final file = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          imageQuality: 80,
+        );
+        files = file == null ? [] : [file];
+      } else {
+        files = await picker.pickMultiImage(
+          limit: remaining,
+          maxWidth: 1600,
+          imageQuality: 80,
+        );
       }
-      if (mounted) {
-        setState(() {
-          photo = bytes;
-          mime =
-              f.mimeType ??
-              (f.name.toLowerCase().endsWith('.png')
-                  ? 'image/png'
-                  : 'image/jpeg');
-        });
+      final selected = <({Uint8List bytes, String mime})>[];
+      var skipped = false;
+      for (final file in files.take(photoLimit - photos.length)) {
+        final bytes = await file.readAsBytes();
+        final mime = switch (bytes) {
+          [0xff, 0xd8, 0xff, ...] => 'image/jpeg',
+          [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...] => 'image/png',
+          [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50, ...] =>
+            'image/webp',
+          _ => null,
+        };
+        if (mime == null || bytes.length > 5 * 1024 * 1024) {
+          skipped = true;
+          continue;
+        }
+        selected.add((bytes: bytes, mime: mime));
       }
+      if (!mounted) return;
+      setState(() => photos.addAll(selected));
+      if (skipped) notice(context, 'Chỉ nhận ảnh JPG, PNG hoặc WebP tối đa 5 MB.');
     } catch (e) {
       if (mounted) notice(context, friendly(e));
+    } finally {
+      if (mounted) setState(() => picking = false);
     }
   }
 
   Future<void> submit() async {
-    if (!form.currentState!.validate()) return;
-    if (photo == null) {
+    if (busy || picking || !form.currentState!.validate()) return;
+    if (photos.isEmpty) {
       notice(context, 'Hãy thêm ảnh thật của món đồ.');
       return;
     }
     setState(() => busy = true);
-    String? path;
+    final paths = <String>[];
     try {
       final uid = db.auth.currentUser!.id;
-      path =
-          '$uid/${DateTime.now().microsecondsSinceEpoch}.${mime == 'image/png'
-              ? 'png'
-              : mime == 'image/webp'
-              ? 'webp'
-              : 'jpg'}';
-      await db.storage
-          .from('listing-images')
-          .uploadBinary(
-            path,
-            photo!,
-            fileOptions: FileOptions(contentType: mime),
-          );
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+      for (final (index, photo) in photos.indexed) {
+        final extension = switch (photo.mime) {
+          'image/png' => 'png',
+          'image/webp' => 'webp',
+          _ => 'jpg',
+        };
+        final path = '$uid/$stamp-$index.$extension';
+        await db.storage.from('listing-images').uploadBinary(
+          path,
+          photo.bytes,
+          fileOptions: FileOptions(contentType: photo.mime),
+        );
+        paths.add(path);
+      }
+      final meetingPoint = pickup.text.trim();
       await db.from('listings').insert({
         'owner_id': uid,
         'title': title.text.trim(),
-        'description': 'Tình trạng: $condition\n\n${description.text.trim()}',
+        'description': [
+          'Tình trạng: $condition',
+          description.text.trim(),
+          if (meetingPoint.isNotEmpty) 'Điểm hẹn gợi ý: $meetingPoint',
+        ].join('\n\n'),
         'price': transactionMode == 'Quyên góp' ? 0 : int.parse(price.text),
         'category': category,
         'area': widget.area,
-        'image_path': path,
+        'image_path': paths.first,
+        if (paths.length > 1) 'additional_image_paths': paths.skip(1).toList(),
+        if (acceptsOffers && transactionMode == 'Bán') 'accepts_offers': true,
       });
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (path != null) {
+      if (paths.isNotEmpty) {
         try {
-          await db.storage.from('listing-images').remove([path]);
+          await db.storage.from('listing-images').remove(paths);
         } catch (_) {}
       }
       if (mounted) notice(context, friendly(e));
@@ -2461,68 +2555,95 @@ class _Compose extends State<Compose> {
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const PassyText('Đăng món đồ')),
+    bottomNavigationBar: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 632),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: busy || picking ? null : submit,
+                child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
     body: Form(
       key: form,
       child: PageBody(
         maxWidth: 680,
         children: [
-              const PassyText(
-                'Bán hoặc cho tặng món đồ',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              PassyText(
-                'Tin sẽ hiển thị cho hàng xóm ở ${widget.area}. Đăng tin hoàn toàn miễn phí.',
-                style: const TextStyle(color: muted),
-              ),
-              const SizedBox(height: 24),
               label('Ảnh món đồ'),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: busy ? null : pick,
-                child: Container(
-                  height: photo == null ? 180 : 280,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: soft,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: photo == null ? const Color(0xFFD9DADC) : line),
-                  ),
-                  child: photo == null
-                      ? const Column(
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    if (photos.length < photoLimit)
+                      OutlinedButton(
+                        onPressed: busy || picking ? null : pick,
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_a_photo_rounded, size: 40, color: brand),
-                            SizedBox(height: 10),
-                            PassyText('Thêm ảnh thật của món đồ', style: TextStyle(fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            PassyText('JPG hoặc PNG, tối đa 5 MB', style: TextStyle(color: muted, fontSize: 13)),
+                            const Icon(Icons.add_a_photo_outlined),
+                            const SizedBox(height: 6),
+                            Text('${photos.length}/$photoLimit'),
                           ],
-                        )
-                      : Stack(
-                          fit: StackFit.expand,
+                        ),
+                      ),
+                    for (final (index, photo) in photos.indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Stack(
                           children: [
-                            Image.memory(photo!, fit: BoxFit.cover),
-                            Positioned(
-                              right: 12,
-                              bottom: 12,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: ink,
-                                  minimumSize: const Size(0, 40),
+                            Tooltip(
+                              message: index == 0 ? tr('Ảnh bìa') : tr('Đặt làm ảnh bìa'),
+                              child: InkWell(
+                                onTap: busy || picking || index == 0
+                                    ? null
+                                    : () => setState(() {
+                                        photos.insert(0, photos.removeAt(index));
+                                      }),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.memory(
+                                    photo.bytes,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
-                                onPressed: busy ? null : pick,
-                                icon: const Icon(Icons.photo_library_outlined, size: 18),
-                                label: const PassyText('Đổi ảnh'),
+                              ),
+                            ),
+                            if (index == 0)
+                              const Positioned(
+                                bottom: 6,
+                                left: 6,
+                                child: Chip(label: PassyText('Ảnh bìa')),
+                              ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: IconButton.filled(
+                                icon: const Icon(Icons.close, size: 17),
+                                onPressed: busy || picking
+                                    ? null
+                                    : () => setState(() => photos.removeAt(index)),
+                                tooltip: tr('Xóa ảnh'),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              label('Tên món đồ'),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: title,
                 maxLength: 160,
@@ -2608,6 +2729,15 @@ class _Compose extends State<Compose> {
                         : null;
                   },
                 ),
+                if (enhancedListings) CheckboxListTile(
+                  value: acceptsOffers,
+                  onChanged: busy ? null : (value) {
+                    setState(() => acceptsOffers = value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const PassyText('Nhận đề xuất giá'),
+                ),
               ] else
                 const Padding(
                   padding: EdgeInsets.only(top: 18),
@@ -2618,42 +2748,57 @@ class _Compose extends State<Compose> {
               TextFormField(
                 controller: description,
                 maxLines: 6,
-                maxLength: 3950,
+                maxLength: 3800,
                 decoration:  InputDecoration(
                   hintText:
-                      tr('Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…'),
+                      tr('Thời gian đã dùng và khuyết điểm (nếu có)…'),
                 ),
                 validator: (v) => (v?.trim().length ?? 0) < 10
                     ? tr('Mô tả ít nhất 10 ký tự')
                     : null,
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on, color: brand, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: PassyText(
-                        'Khu vực: ${widget.area}. Không ghi địa chỉ nhà, số điện thoại hay số tài khoản trong tin.',
-                        style: const TextStyle(height: 1.5),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 16),
+              label('Điểm hẹn gợi ý'),
+              TextFormField(
+                controller: pickup,
+                enabled: !busy,
+                maxLength: 120,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.place_outlined),
+                  hintText: tr('Ví dụ: cổng công viên'),
+                  helperText: tr('Không bắt buộc · ưu tiên nơi công cộng'),
                 ),
               ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
+              PassyText(
+                'Khu vực đăng tin: ${widget.area}',
+                style: const TextStyle(color: muted),
               ),
-              const SizedBox(height: 24),
         ],
       ),
     ),
   );
+}
+
+
+const _pickupPrefix = '\n\nĐiểm hẹn gợi ý: ';
+
+String? _suggestedPickup(String description) {
+  final start = description.lastIndexOf(_pickupPrefix);
+  if (start < 0) return null;
+  final pickup = description.substring(start + _pickupPrefix.length).trim();
+  return pickup.isEmpty || pickup.contains('\n') ? null : pickup;
+}
+
+Future<void> _setFavorite(String listingId, bool saved) async {
+  final uid = db.auth.currentUser!.id;
+  if (saved) {
+    await db.from('favorites').upsert(
+      {'user_id': uid, 'listing_id': listingId},
+      ignoreDuplicates: true,
+    );
+  } else {
+    await db.from('favorites').delete().eq('user_id', uid).eq('listing_id', listingId);
+  }
 }
 
 class Detail extends StatefulWidget {
@@ -2665,20 +2810,115 @@ class Detail extends StatefulWidget {
 
 class _Detail extends State<Detail> {
   bool busy = false;
-  Future<void> contact() async {
+  int photoIndex = 0;
+  bool saved = false;
+  bool savingFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    final uid = db.auth.currentUser?.id;
+    if (uid == null || uid == widget.item['owner_id']) return;
+    try {
+      final row = await db.from('favorites')
+          .select('listing_id')
+          .eq('user_id', uid)
+          .eq('listing_id', widget.item['id'])
+          .maybeSingle();
+      if (mounted && db.auth.currentUser?.id == uid) {
+        setState(() => saved = row != null);
+      }
+    } catch (e) {
+      if (mounted) notice(context, friendly(e));
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (savingFavorite) return;
+    setState(() => savingFavorite = true);
+    try {
+      if (db.auth.currentUser == null) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+        if (!mounted || db.auth.currentUser == null) return;
+        await _loadFavorite();
+        if (!mounted) return;
+      }
+      await _setFavorite(widget.item['id'], !saved);
+      if (mounted) setState(() => saved = !saved);
+    } catch (e) {
+      if (mounted) notice(context, friendly(e));
+    } finally {
+      if (mounted) setState(() => savingFavorite = false);
+    }
+  }
+
+  Widget _favoriteButton() => IconButton(
+    tooltip: tr(saved ? 'Bỏ lưu món đồ' : 'Lưu món đồ'),
+    onPressed: savingFavorite ? null : _toggleFavorite,
+    icon: Icon(
+      saved ? Icons.favorite : Icons.favorite_border,
+      color: saved ? brand : muted,
+    ),
+  );
+
+  Future<void> offerPrice() async {
+    var offered = '';
+    final price = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final amount = int.tryParse(offered);
+          final valid = amount != null && amount > 0 && amount < widget.item['price'];
+          return AlertDialog(
+            title: const PassyText('Đề xuất giá'),
+            content: TextField(
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (value) => setDialogState(() => offered = value),
+              decoration: InputDecoration(
+                labelText: tr('Giá bạn muốn mua'),
+                suffixText: 'đ',
+                helperText: '${tr('Giá đăng')}: ${money(widget.item['price'])}',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const PassyText('Hủy'),
+              ),
+              FilledButton(
+                onPressed: valid ? () => Navigator.pop(context, amount) : null,
+                child: const PassyText('Tiếp tục vào chat'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (price != null && mounted) {
+      await contact(draft: '${tr('Mình muốn đề xuất giá')}: ${money(price)}');
+    }
+  }
+
+  Future<void> contact({String draft = ''}) async {
     if (db.auth.currentUser == null) {
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const Login()),
       );
-      if (db.auth.currentUser == null) return;
+      if (!mounted || db.auth.currentUser == null) return;
     }
     setState(() => busy = true);
     try {
       final uid = db.auth.currentUser!.id;
       var t = await db
           .from('conversations')
-          .select('*,listings(title,price,image_path)')
+          .select('*,listings(title,price,image_path,description)')
           .eq('listing_id', widget.item['id'])
           .eq('buyer_id', uid)
           .maybeSingle();
@@ -2689,12 +2929,12 @@ class _Detail extends State<Detail> {
             'buyer_id': uid,
             'seller_id': widget.item['owner_id'],
           })
-          .select('*,listings(title,price,image_path)')
+          .select('*,listings(title,price,image_path,description)')
           .single();
       if (mounted) {
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => Chat(thread: t!)),
+          MaterialPageRoute(builder: (_) => Chat(thread: t!, draft: draft)),
         );
       }
     } catch (e) {
@@ -2841,11 +3081,38 @@ class _Detail extends State<Detail> {
     final mine = db.auth.currentUser?.id == x['owner_id'];
     final wide = isWide(c);
     final seller = x['profiles']?['name'] ?? 'Thành viên';
+    final description = x['description'] as String? ?? '';
+    final pickup = _suggestedPickup(description);
+    final canOffer = !mine && x['moderated'] != true &&
+        x['accepts_offers'] == true && x['status'] == 'available' &&
+        (x['price'] as num? ?? 0) > 0;
+    final imagePaths = [
+      x['image_path'] as String? ?? '',
+      ...((x['additional_image_paths'] as List?) ?? const []).whereType<String>(),
+    ];
     final photo = ClipRRect(
       borderRadius: BorderRadius.circular(wide ? 20 : 0),
       child: AspectRatio(
         aspectRatio: 1,
-        child: ListingImage(path: x['image_path'] ?? '', size: double.infinity),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            PageView.builder(
+              itemCount: imagePaths.length,
+              onPageChanged: (index) => setState(() => photoIndex = index),
+              itemBuilder: (_, index) => ListingImage(
+                path: imagePaths[index],
+                size: double.infinity,
+              ),
+            ),
+            if (imagePaths.length > 1)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Chip(label: Text('${photoIndex + 1}/${imagePaths.length}')),
+              ),
+          ],
+        ),
       ),
     );
     final sellerCard = InkWell(
@@ -2888,8 +3155,6 @@ class _Detail extends State<Detail> {
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        sellerCard,
-        const SizedBox(height: 22),
         Row(children: [StatusBadge(x['status']), const Spacer()]),
         const SizedBox(height: 10),
         Text(
@@ -2903,18 +3168,31 @@ class _Detail extends State<Detail> {
               .join(' · '),
           style: const TextStyle(color: muted),
         ),
-        const SizedBox(height: 14),
-        Text(
-          money(x['price']),
-          style: TextStyle(fontSize: wide ? 30 : 24, fontWeight: FontWeight.w900, color: ink),
-        ),
+        if (wide || mine || x['moderated'] == true) ...[
+          const SizedBox(height: 14),
+          Text(
+            money(x['price']),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: ink),
+          ),
+        ],
+        const SizedBox(height: 16),
+        sellerCard,
         const SizedBox(height: 20),
         const Divider(),
         const SizedBox(height: 20),
         Text(
-          localizedListingDescription(x['description'] ?? ''),
+          localizedListingDescription(
+            pickup == null ? description : description.substring(0, description.lastIndexOf(_pickupPrefix)),
+          ),
           style: const TextStyle(fontSize: 16, height: 1.7, color: ink),
         ),
+        if (pickup != null)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.place_outlined, color: brand),
+            title: const PassyText('Điểm hẹn gợi ý'),
+            subtitle: Text(pickup),
+          ),
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
@@ -2934,7 +3212,12 @@ class _Detail extends State<Detail> {
             ],
           ),
         ),
-        if (wide) ...[const SizedBox(height: 24), action(x, mine)],
+        if (wide) ...[
+          const SizedBox(height: 24),
+          action(x, mine),
+          if (canOffer)
+            TextButton(onPressed: busy ? null : offerPrice, child: const PassyText('Đề xuất giá')),
+        ],
       ],
     );
     return Scaffold(
@@ -2942,6 +3225,7 @@ class _Detail extends State<Detail> {
         title: const PassyText('Chi tiết món đồ'),
         actions: [
           IconButton(tooltip: tr('Sao chép liên kết'), onPressed: share, icon: const Icon(Icons.ios_share)),
+          if (wide && !mine && x['moderated'] != true) _favoriteButton(),
           if (!mine)
             IconButton(tooltip: tr('Báo cáo tin'), onPressed: report, icon: const Icon(Icons.flag_outlined)),
           const SizedBox(width: 8),
@@ -2981,6 +3265,8 @@ class _Detail extends State<Detail> {
                     ? action(x, mine)
                     : Row(
                         children: [
+                          _favoriteButton(),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -2990,7 +3276,12 @@ class _Detail extends State<Detail> {
                                   money(x['price']),
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                                 ),
-                                const PassyText('Giá người bán đưa ra', style: TextStyle(color: muted, fontSize: 12)),
+                                if (canOffer)
+                                  TextButton(
+                                    onPressed: busy ? null : offerPrice,
+                                    style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                                    child: const PassyText('Đề xuất giá'),
+                                  ),
                               ],
                             ),
                           ),
@@ -3006,13 +3297,14 @@ class _Detail extends State<Detail> {
 class Chat extends StatefulWidget {
   final Map<String, dynamic> thread;
   final VoidCallback? onRead;
-  const Chat({super.key, required this.thread, this.onRead});
+  final String draft;
+  const Chat({super.key, required this.thread, this.onRead, this.draft = ''});
   @override
   State<Chat> createState() => _Chat();
 }
 
 class _Chat extends State<Chat> {
-  final input = TextEditingController();
+  late final input = TextEditingController(text: widget.draft);
   List<Map<String, dynamic>> messages = [];
   Timer? timer;
   bool sending = false, fetching = false;
