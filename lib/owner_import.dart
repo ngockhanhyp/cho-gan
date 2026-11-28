@@ -130,19 +130,25 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
     batchId = _newOwnerBatchId();
   }
 
-  Future<void> _read(bool fromGoogle) async {
+  Future<void> _read(bool fromGoogle, {bool privateSheet = false}) async {
     if (busy || submitted) return;
-    if (fromGoogle && (!googleClient.text.trim().endsWith('.apps.googleusercontent.com') ||
-        sheetLink.text.trim().isEmpty)) {
-      notice(context, 'Nhập link Google Sheet và OAuth Client ID của Passy.');
+    if (fromGoogle && sheetLink.text.trim().isEmpty) {
+      notice(context, 'Dán link Google Sheets.');
+      return;
+    }
+    if (privateSheet && !googleClient.text.trim().endsWith('.apps.googleusercontent.com')) {
+      notice(context, 'Nhập OAuth Client ID của Passy để mở bảng tính riêng tư.');
       return;
     }
     setState(() { busy = true; progress = 'Đang đọc bảng…'; });
     try {
       final clientId = googleClient.text.trim();
-      final json = fromGoogle ? await readOwnerSheet(clientId, sheetLink.text.trim()) : await readOwnerWorkbook();
+      final link = sheetLink.text.trim();
+      final json = !fromGoogle ? await readOwnerWorkbook()
+          : privateSheet ? await readOwnerSheet(clientId, link)
+          : await readPublicOwnerSheet(link);
       if (!mounted || json.isEmpty) return;
-      if (fromGoogle) {
+      if (privateSheet) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('passy_sheets_oauth_client', clientId);
       }
@@ -156,7 +162,9 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       if (mounted) setState(() {
         rows.clear();
         errors..clear()..add(fromGoogle
-          ? 'Không đọc được Google Sheet. Kiểm tra quyền xem, Client ID, tab và giới hạn 50 dòng.'
+          ? privateSheet
+            ? 'Không đọc được bảng riêng tư. Kiểm tra quyền xem, Client ID và giới hạn 50 dòng.'
+            : 'Không đọc được bảng. Kiểm tra link đúng tab, quyền “Bất kỳ ai có đường liên kết” và giới hạn 50 dòng.'
           : 'Không đọc được tệp. Hãy chọn XLSX hoặc CSV tối đa 5 MB và 50 dòng.');
       });
     } finally {
@@ -256,10 +264,18 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
       TextField(controller: sheetLink, enabled: !busy && !submitted,
         decoration: const InputDecoration(labelText: 'Link Google Sheets')),
       const SizedBox(height: 8),
-      TextField(controller: googleClient, enabled: !busy && !submitted,
-        decoration: const InputDecoration(labelText: 'Google OAuth Client ID')),
-      const SizedBox(height: 8),
-      OutlinedButton(onPressed: busy || submitted ? null : () => _read(true), child: const Text('Đọc Google Sheets')),
+      OutlinedButton(onPressed: busy || submitted ? null : () => _read(true),
+        child: const Text('Đọc link chia sẻ')),
+      const Text('Trong Google Sheets, chọn Chia sẻ → Bất kỳ ai có đường liên kết → Người xem.'),
+      ExpansionTile(
+        title: const Text('Dùng bảng tính riêng tư'),
+        children: [
+          TextField(controller: googleClient, enabled: !busy && !submitted,
+            decoration: const InputDecoration(labelText: 'Google OAuth Client ID')),
+          OutlinedButton(onPressed: busy || submitted ? null : () => _read(true, privateSheet: true),
+            child: const Text('Đăng nhập Google và đọc bảng')),
+        ],
+      ),
       if (busy) ...[const LinearProgressIndicator(), Text(progress)],
       if (posted > 0) Text('Đã đăng $posted tin.'),
       for (final error in errors) ListTile(leading: const Icon(Icons.error_outline), title: Text(error)),

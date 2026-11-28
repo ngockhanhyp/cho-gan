@@ -30,3 +30,9 @@ Future<String> readOwnerWorkbook() async => (await _readWorkbook().toDart).toDar
 
 Future<String> readOwnerSheet(String clientId, String url) async =>
     (await _readSheet(clientId.toJS, url.toJS).toDart).toDart;
+
+@JS('passyReadPublicOwnerSheet')
+external JSPromise<JSString> _readPublicSheet(JSString url);
+
+Future<String> readPublicOwnerSheet(String url) async =>
+    (await _readPublicSheet(url.toJS).toDart).toDart;

@@ -8,3 +8,6 @@ Future<String> readOwnerWorkbook() => Future.error(UnsupportedError('Chỉ hỗ 
 
 Future<String> readOwnerSheet(String clientId, String url) =>
     Future.error(UnsupportedError('Chỉ hỗ trợ trên web.'));
+
+Future<String> readPublicOwnerSheet(String url) =>
+    Future.error(UnsupportedError('Chỉ hỗ trợ trên web.'));

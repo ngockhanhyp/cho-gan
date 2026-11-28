@@ -101,8 +101,12 @@
     });
     if (!file) return '';
     if (file.size > 5 * 1024 * 1024) throw new Error('Workbook exceeds 5 MB');
+    return readWorkbookRows(await file.arrayBuffer());
+  };
+
+  async function readWorkbookRows(bytes) {
     await loadExcel();
-    const book = XLSX.read(await file.arrayBuffer(), {sheetRows: 52, sheets: 0});
+    const book = XLSX.read(bytes, {sheetRows: 52, sheets: 0, raw: true});
     const sheet = book.Sheets[book.SheetNames[0]];
     if (!sheet?.['!ref']) return '[]';
     const bounds = XLSX.utils.decode_range(sheet['!ref']);
@@ -118,20 +122,43 @@
       }));
     }
     return JSON.stringify(rows);
-  };
+  }
 
-  window.passyReadOwnerSheet = async (clientId, url) => {
+  function sheetLink(url) {
     const source = new URL(url);
     const id = source.hostname === 'docs.google.com' &&
       source.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9_-]+)(?:\/|$)/)?.[1];
     if (source.protocol !== 'https:' || !id) throw new Error('Invalid Google Sheet link');
+    const gid = new URLSearchParams(source.hash.slice(1)).get('gid') ?? source.searchParams.get('gid');
+    if (gid !== null && !/^\d+$/.test(gid)) throw new Error('Invalid tab');
+    return {id, gid};
+  }
+
+  window.passyReadPublicOwnerSheet = async url => {
+    const {id, gid} = sheetLink(url);
+    const endpoint = new URL('https://docs.google.com/spreadsheets/d/' + id + '/export');
+    endpoint.searchParams.set('format', 'csv');
+    if (gid !== null) endpoint.searchParams.set('gid', gid);
+    const response = await fetch(endpoint, {
+      credentials: 'omit',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok || !response.headers.get('content-type')?.startsWith('text/csv')) {
+      throw new Error('Google Sheet is not available as public CSV');
+    }
+    const csv = await response.blob();
+    if (csv.size > 5 * 1024 * 1024) throw new Error('CSV exceeds 5 MB');
+    return readWorkbookRows(await csv.arrayBuffer());
+  };
+
+  window.passyReadOwnerSheet = async (clientId, url) => {
+    const {id, gid} = sheetLink(url);
     const token = await googleToken(clientId, 'https://www.googleapis.com/auth/spreadsheets.readonly');
     const headers = {Authorization: 'Bearer ' + token};
     const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + id;
     const metadata = await fetch(base + '?fields=sheets.properties(sheetId,title,index)', {headers});
     if (!metadata.ok) throw new Error('No access to spreadsheet');
     const {sheets} = await metadata.json();
-    const gid = new URLSearchParams(source.hash.slice(1)).get('gid') ?? source.searchParams.get('gid');
     const selected = gid === null ? sheets.find(sheet => sheet.properties.index === 0)
       : sheets.find(sheet => String(sheet.properties.sheetId) === gid);
     if (!selected) throw new Error('Sheet tab not found');
