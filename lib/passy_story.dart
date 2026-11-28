@@ -79,7 +79,7 @@ class PassyChapterPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          PassyText(
             chapter.label,
             style: const TextStyle(
               color: Color(0xFF674E42),
@@ -87,7 +87,7 @@ class PassyChapterPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
+          PassyText(
             chapter.title,
             style: TextStyle(
               fontSize: horizontal && !compact ? 43 : 27,
@@ -97,7 +97,7 @@ class PassyChapterPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
+          PassyText(
             chapter.story,
             style: const TextStyle(color: Color(0xFF53443E), height: 1.5),
           ),
@@ -108,7 +108,7 @@ class PassyChapterPanel extends StatelessWidget {
               runSpacing: 8,
               children: [
                 if (action != null)
-                  FilledButton(onPressed: action, child: Text(chapter.action)),
+                  FilledButton(onPressed: action, child: PassyText(chapter.action)),
                 if (secondary != null) secondary!,
               ],
             ),
@@ -268,7 +268,7 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                       secondary: index == 0
                           ? TextButton(
                               onPressed: () => widget.onAction(0),
-                              child: const Text('Xem đồ quanh bạn'),
+                              child: const PassyText('Xem đồ quanh bạn'),
                             )
                           : null,
                     ),
@@ -281,7 +281,7 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   IconButton(
-                    tooltip: 'Chương trước',
+                    tooltip: tr('Chương trước'),
                     onPressed: () => move(
                       (current - 1 + passyChapters.length) %
                           passyChapters.length,
@@ -290,9 +290,7 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                   ),
                   for (final (index, chapter) in passyChapters.indexed)
                     IconButton(
-                      tooltip: index == 0
-                          ? marketplaceOpening.label
-                          : chapter.label,
+                      tooltip: tr(index == 0 ? marketplaceOpening.label : chapter.label),
                       onPressed: () => move(index),
                       icon: Icon(
                         index == current ? Icons.circle : Icons.circle_outlined,
@@ -301,13 +299,13 @@ class _PassyStoryCarouselState extends State<PassyStoryCarousel> {
                       ),
                     ),
                   IconButton(
-                    tooltip: 'Chương tiếp',
+                    tooltip: tr('Chương tiếp'),
                     onPressed: () => move((current + 1) % passyChapters.length),
                     icon: const Icon(Icons.chevron_right),
                   ),
                   if (!MediaQuery.disableAnimationsOf(context))
                     IconButton(
-                      tooltip: paused ? 'Phát tự động' : 'Tạm dừng',
+                      tooltip: tr(paused ? 'Phát tự động' : 'Tạm dừng'),
                       onPressed: () => setState(() => paused = !paused),
                       icon: Icon(
                         paused ? Icons.play_arrow : Icons.pause,
@@ -346,13 +344,13 @@ class _PassyStoryTourState extends State<PassyStoryTour> {
           children: [
             Row(
               children: [
-                Text(
+                PassyText(
                   'Chào mừng đến Passy  ·  ${index + 1}/${passyChapters.length}',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Bỏ qua',
+                  tooltip: tr('Bỏ qua'),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -368,17 +366,17 @@ class _PassyStoryTourState extends State<PassyStoryTour> {
                 if (index > 0)
                   TextButton(
                     onPressed: () => setState(() => index--),
-                    child: const Text('Quay lại'),
+                    child: const PassyText('Quay lại'),
                   ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Bỏ qua'),
+                  child: const PassyText('Bỏ qua'),
                 ),
                 FilledButton(
                   onPressed: index == passyChapters.length - 1
                       ? () => Navigator.pop(context)
                       : () => setState(() => index++),
-                  child: Text(
+                  child: PassyText(
                     index == passyChapters.length - 1
                         ? 'Bắt đầu khám phá'
                         : 'Tiếp theo',

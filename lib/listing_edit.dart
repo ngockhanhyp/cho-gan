@@ -48,18 +48,18 @@ class _EditListing extends State<EditListing> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: const Text('Chỉnh sửa tin')),
+    appBar: AppBar(title: const PassyText('Chỉnh sửa tin')),
     body: Form(
       key: form,
       child: PageBody(
         maxWidth: 680,
         children: [
-              const Text(
+              const PassyText(
                 'Cập nhật tin đăng',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              const Text(
+              const PassyText(
                 'Giá và mô tả rõ ràng giúp hàng xóm quyết định nhanh hơn.',
                 style: TextStyle(color: muted),
               ),
@@ -67,19 +67,19 @@ class _EditListing extends State<EditListing> {
               TextFormField(
                 controller: title,
                 maxLength: 160,
-                decoration: const InputDecoration(labelText: 'Tên món đồ'),
+                decoration:  InputDecoration(labelText: tr('Tên món đồ')),
                 validator: (v) =>
-                    (v?.trim().length ?? 0) < 4 ? 'Nhập ít nhất 4 ký tự' : null,
+                    (v?.trim().length ?? 0) < 4 ? tr('Nhập ít nhất 4 ký tự') : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: price,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Giá (đồng)'),
+                decoration:  InputDecoration(labelText: tr('Giá (đồng)')),
                 validator: (v) {
                   final n = int.tryParse(v ?? '');
                   return n == null || n < 0 || n > 100000000000
-                      ? 'Nhập giá hợp lệ'
+                      ? tr('Nhập giá hợp lệ')
                       : null;
                 },
               ),
@@ -88,15 +88,15 @@ class _EditListing extends State<EditListing> {
                 controller: description,
                 maxLength: 4000,
                 maxLines: 6,
-                decoration: const InputDecoration(labelText: 'Mô tả'),
+                decoration:  InputDecoration(labelText: tr('Mô tả')),
                 validator: (v) => (v?.trim().length ?? 0) < 10
-                    ? 'Mô tả ít nhất 10 ký tự'
+                    ? tr('Mô tả ít nhất 10 ký tự')
                     : null,
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: busy ? null : save,
-                child: Text(busy ? 'Đang lưu…' : 'Lưu thay đổi'),
+                child: PassyText(busy ? 'Đang lưu…' : 'Lưu thay đổi'),
               ),
         ],
       ),
@@ -132,7 +132,7 @@ class _ListingLink extends State<ListingLink> {
       }
       if (s.hasError || s.data == null) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Passy')),
+          appBar: AppBar(title: const PassyText('Passy')),
           body: const PageBody(
             children: [
               EmptyState(

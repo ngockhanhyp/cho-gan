@@ -69,15 +69,15 @@ extension MarketHome on _Home {
                     )),
                     const Center(child: Icon(Icons.location_pin, color: brand, size: 36)),
                     const Positioned(right: 4, bottom: 2, child: ColoredBox(
-                      color: Colors.white, child: Text('© OpenStreetMap', style: TextStyle(fontSize: 10)),
+                      color: Colors.white, child: PassyText('© OpenStreetMap', style: TextStyle(fontSize: 10)),
                     )),
                   ],
                 ),
               ),
               ListTile(
                 leading: const Icon(Icons.map_outlined, color: brand),
-                title: const Text('Bản đồ quanh bạn'),
-                subtitle: Text('${nearby.length} tin đang bán · $area'),
+                title: const PassyText('Bản đồ quanh bạn'),
+                subtitle: PassyText('${nearby.length} tin đang bán · $area'),
                 trailing: const Icon(Icons.chevron_right),
               ),
             ],
@@ -93,12 +93,12 @@ extension MarketHome on _Home {
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(left: 12),
-          title: Text(group.key),
+          title: PassyText(group.key),
           children: [
             for (final ward in group.value)
               ListTile(
                 dense: true,
-                title: Text('Phường $ward'),
+                title: PassyText('Phường $ward'),
                 selected: area == ward,
                 onTap: () => setState(() => area = ward),
               ),
@@ -107,9 +107,9 @@ extension MarketHome on _Home {
       TextButton.icon(
         onPressed: () => setState(() => showAllDistricts = !showAllDistricts),
         icon: Icon(showAllDistricts ? Icons.expand_less : Icons.expand_more),
-        label: Text(showAllDistricts ? 'Thu gọn' : 'Xem thêm quận'),
+        label: PassyText(showAllDistricts ? 'Thu gọn' : 'Xem thêm quận'),
       ),
-      TextButton(onPressed: pickArea, child: const Text('Tất cả phường, xã')),
+      TextButton(onPressed: pickArea, child: const PassyText('Tất cả phường, xã')),
     ],
   ));
 }

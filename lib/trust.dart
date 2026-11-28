@@ -85,18 +85,18 @@ class _MeetingPage extends State<MeetingPage> {
     final place = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Địa điểm gặp'),
+        title: const PassyText('Địa điểm gặp'),
         content: TextField(
           controller: location,
           maxLength: 200,
-          decoration: const InputDecoration(
-            hintText: 'Ví dụ: sảnh tòa nhà, quán cà phê…',
+          decoration:  InputDecoration(
+            hintText: tr('Ví dụ: sảnh tòa nhà, quán cà phê…'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text('Hủy'),
+            child: const PassyText('Hủy'),
           ),
           FilledButton(
             onPressed: () {
@@ -104,7 +104,7 @@ class _MeetingPage extends State<MeetingPage> {
                 Navigator.pop(c, location.text.trim());
               }
             },
-            child: const Text('Gửi lời hẹn'),
+            child: const PassyText('Gửi lời hẹn'),
           ),
         ],
       ),
@@ -136,7 +136,7 @@ class _MeetingPage extends State<MeetingPage> {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => AlertDialog(
-          title: const Text('Trải nghiệm giao dịch'),
+          title: const PassyText('Trải nghiệm giao dịch'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -156,8 +156,8 @@ class _MeetingPage extends State<MeetingPage> {
                 controller: comment,
                 maxLength: 1000,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Chia sẻ lịch sự và đúng trải nghiệm',
+                decoration:  InputDecoration(
+                  hintText: tr('Chia sẻ lịch sự và đúng trải nghiệm'),
                 ),
               ),
             ],
@@ -165,13 +165,13 @@ class _MeetingPage extends State<MeetingPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Để sau'),
+              child: const PassyText('Để sau'),
             ),
             FilledButton(
               onPressed: () {
                 if (comment.text.trim().length >= 3) Navigator.pop(c, true);
               },
-              child: const Text('Gửi đánh giá'),
+              child: const PassyText('Gửi đánh giá'),
             ),
           ],
         ),
@@ -201,7 +201,7 @@ class _MeetingPage extends State<MeetingPage> {
       (m) => ['proposed', 'accepted'].contains(m['status']),
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Lịch hẹn giao dịch')),
+      appBar: AppBar(title: const PassyText('Lịch hẹn giao dịch')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
@@ -211,24 +211,24 @@ class _MeetingPage extends State<MeetingPage> {
                   padding: const EdgeInsets.all(24),
                   children: [
                     Text(
-                      widget.thread['listings']?['title'] ?? 'Món đồ',
+                      widget.thread['listings']?['title'] ?? tr('Món đồ'),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    const PassyText(
                       'Hẹn gặp tại nơi công cộng. Chỉ xác nhận hoàn tất khi bạn đã nhận hàng hoặc bàn giao xong.',
                     ),
                     if (error != null)
-                      Text(error!, style: const TextStyle(color: Colors.red)),
+                      PassyText(error!, style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 20),
                     if (!active)
                       FilledButton.icon(
                         onPressed: busy ? null : propose,
                         icon: const Icon(Icons.event_available),
-                        label: const Text('Đề xuất lịch hẹn'),
+                        label: const PassyText('Đề xuất lịch hẹn'),
                       ),
                     ...meetings.map((m) {
                       final at = DateTime.parse(m['meet_at']).toLocal();
@@ -255,7 +255,7 @@ class _MeetingPage extends State<MeetingPage> {
                                 '${at.day}/${at.month}/${at.year} · ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
                               ),
                               const SizedBox(height: 8),
-                              Text(
+                              PassyText(
                                 {
                                       'proposed': 'Đang chờ xác nhận',
                                       'accepted': 'Hai bên đã đồng ý',
@@ -276,14 +276,14 @@ class _MeetingPage extends State<MeetingPage> {
                                       onPressed: busy
                                           ? null
                                           : () => act(m['id'], 'accept'),
-                                      child: const Text('Đồng ý lịch hẹn'),
+                                      child: const PassyText('Đồng ý lịch hẹn'),
                                     ),
                                   if (status == 'accepted')
                                     FilledButton(
                                       onPressed: busy || done
                                           ? null
                                           : () => act(m['id'], 'complete'),
-                                      child: Text(
+                                      child: PassyText(
                                         done
                                             ? 'Đã xác nhận · chờ bên kia'
                                             : 'Tôi đã giao dịch xong',
@@ -294,7 +294,7 @@ class _MeetingPage extends State<MeetingPage> {
                                       onPressed: busy
                                           ? null
                                           : () => act(m['id'], 'cancel'),
-                                      child: const Text('Hủy hẹn'),
+                                      child: const PassyText('Hủy hẹn'),
                                     ),
                                   if (status == 'completed' &&
                                       !reviewed.contains(m['id']))
@@ -302,10 +302,10 @@ class _MeetingPage extends State<MeetingPage> {
                                       onPressed: busy
                                           ? null
                                           : () => review(m['id']),
-                                      child: const Text('Đánh giá'),
+                                      child: const PassyText('Đánh giá'),
                                     ),
                                   if (reviewed.contains(m['id']))
-                                    const Text(
+                                    const PassyText(
                                       'Bạn đã đánh giá giao dịch này.',
                                     ),
                                 ],
@@ -421,22 +421,22 @@ class _MemberPage extends State<MemberPage> {
         const SizedBox(height: 8),
         Text(
           reviews.isEmpty
-              ? 'Chưa có đánh giá'
+              ? tr('Chưa có đánh giá')
               : '${(reviews.fold<int>(0, (s, r) => s + (r['rating'] as int)) / reviews.length).toStringAsFixed(1)} / 5 · ${reviews.length} đánh giá',
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
-        const Text(
+        const PassyText(
           'Đánh giá đến từ giao dịch hai bên đã xác nhận. Đây là phản hồi cộng đồng, không phải bảo đảm chất lượng hàng.',
         ),
         if (db.auth.currentUser?.id != widget.id)
           TextButton.icon(
             onPressed: toggle,
             icon: Icon(blocked ? Icons.lock_open : Icons.block),
-            label: Text(blocked ? 'Bỏ chặn người này' : 'Chặn liên hệ mới'),
+            label: PassyText(blocked ? 'Bỏ chặn người này' : 'Chặn liên hệ mới'),
           ),
         if (loading) const Center(child: CircularProgressIndicator()),
-        if (error != null) Text(error!),
+        if (error != null) PassyText(error!),
         ...reviews.map(
           (r) => ListTile(
             title: Text(
@@ -507,15 +507,15 @@ class _ModerationPage extends State<ModerationPage> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: const Text('Quản trị báo cáo')),
+    appBar: AppBar(title: const PassyText('Quản trị báo cáo')),
     body: loading
         ? const Center(child: CircularProgressIndicator())
         : ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              if (error != null) Text(error!),
+              if (error != null) PassyText(error!),
               if (reports.isEmpty && error == null)
-                const Text('Không có báo cáo chờ xử lý.'),
+                const PassyText('Không có báo cáo chờ xử lý.'),
               ...reports.map(
                 (r) => Card(
                   child: Padding(
@@ -524,7 +524,7 @@ class _ModerationPage extends State<ModerationPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          r['listings']?['title'] ?? 'Tin đã ẩn',
+                          r['listings']?['title'] ?? tr('Tin đã ẩn'),
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -537,11 +537,11 @@ class _ModerationPage extends State<ModerationPage> {
                           children: [
                             FilledButton(
                               onPressed: () => resolve(r['id'], true),
-                              child: const Text('Ẩn tin vi phạm'),
+                              child: const PassyText('Ẩn tin vi phạm'),
                             ),
                             TextButton(
                               onPressed: () => resolve(r['id'], false),
-                              child: const Text('Đóng báo cáo'),
+                              child: const PassyText('Đóng báo cáo'),
                             ),
                           ],
                         ),

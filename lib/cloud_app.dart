@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -31,8 +32,8 @@ final db = Supabase.instance.client;
 String? authRedirectUrl() =>
     kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : null;
 String money(dynamic value) => value == 0
-    ? 'Quyên góp'
-    : '${value.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
+    ? tr('Quyên góp')
+    : '${value.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} ${PassyLocale.current.value.languageCode == 'vi' ? 'đ' : 'VND'}';
 String friendly(Object e) {
   if (e is AuthException) {
     final m = e.message.toLowerCase();
@@ -61,7 +62,7 @@ String friendly(Object e) {
 }
 
 void notice(BuildContext c, String text) =>
-    ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: PassyText(text)));
 
 const ink = Color(0xFF1A1C20);
 const muted = Color(0xFF6B7078);
@@ -97,10 +98,10 @@ String timeAgo(dynamic iso) {
   final t = DateTime.tryParse('${iso ?? ''}');
   if (t == null) return '';
   final d = DateTime.now().difference(t.toLocal());
-  if (d.inMinutes < 1) return 'vừa xong';
-  if (d.inMinutes < 60) return '${d.inMinutes} phút trước';
-  if (d.inHours < 24) return '${d.inHours} giờ trước';
-  if (d.inDays < 30) return '${d.inDays} ngày trước';
+  if (d.inMinutes < 1) return tr('vừa xong');
+  if (d.inMinutes < 60) return tr('${d.inMinutes} phút trước');
+  if (d.inHours < 24) return tr('${d.inHours} giờ trước');
+  if (d.inDays < 30) return tr('${d.inDays} ngày trước');
   return '${t.day}/${t.month}/${t.year}';
 }
 
@@ -265,7 +266,7 @@ class SectionTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              PassyText(
                 text,
                 style: TextStyle(
                   fontSize: isWide(c) ? 22 : 19,
@@ -275,7 +276,7 @@ class SectionTitle extends StatelessWidget {
               ),
               if (sub != null) ...[
                 const SizedBox(height: 4),
-                Text(sub!, style: const TextStyle(color: muted)),
+                PassyText(sub!, style: const TextStyle(color: muted)),
               ],
             ],
           ),
@@ -310,13 +311,13 @@ class EmptyState extends StatelessWidget {
           child: Icon(icon, size: 34, color: brand),
         ),
         const SizedBox(height: 16),
-        Text(
+        PassyText(
           title,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: ink),
         ),
         const SizedBox(height: 6),
-        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: muted, height: 1.5)),
+        PassyText(text, textAlign: TextAlign.center, style: const TextStyle(color: muted, height: 1.5)),
         if (action != null) ...[const SizedBox(height: 18), action!],
       ],
     ),
@@ -343,7 +344,7 @@ class Avatar extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
-      child: Text(
+      child: PassyText(
         letter,
         style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: size * 0.42),
       ),
@@ -368,7 +369,7 @@ class StatusBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+      child: PassyText(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -377,10 +378,12 @@ class ChoGan extends StatelessWidget {
   final String? authMessage;
   const ChoGan({super.key, this.authMessage});
   @override
-  Widget build(BuildContext c) => MaterialApp(
+  Widget build(BuildContext c) => ValueListenableBuilder<Locale>(
+    valueListenable: PassyLocale.current,
+    builder: (c, activeLocale, _) => MaterialApp(
     title: 'Passy',
-    locale: const Locale('vi'),
-    supportedLocales: const [Locale('vi')],
+    locale: activeLocale,
+    supportedLocales: const [Locale('vi'), Locale('en'), Locale('ko')],
     localizationsDelegates: const [
       GlobalMaterialLocalizations.delegate,
       GlobalWidgetsLocalizations.delegate,
@@ -400,7 +403,7 @@ class ChoGan extends StatelessWidget {
       return null;
     },
     home: Home(authMessage: authMessage),
-  );
+  ));
 }
 
 class Home extends StatefulWidget {
@@ -596,8 +599,8 @@ class _Home extends State<Home> {
   void safetyTips() => showDialog(
     context: context,
     builder: (d) => AlertDialog(
-      title: const Text('Giao dịch an toàn'),
-      content: const Text(
+      title: const PassyText('Giao dịch an toàn'),
+      content: const PassyText(
         '• Hẹn gặp ở nơi công cộng, đông người.\n'
         '• Kiểm tra kỹ món đồ trước khi trả tiền.\n'
         '• Không chuyển khoản đặt cọc cho người lạ.\n'
@@ -606,7 +609,7 @@ class _Home extends State<Home> {
         style: TextStyle(height: 1.7),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(d), child: const Text('Đã hiểu')),
+        TextButton(onPressed: () => Navigator.pop(d), child: const PassyText('Đã hiểu')),
       ],
     ),
   );
@@ -621,8 +624,8 @@ class _Home extends State<Home> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(error!),
-                TextButton(onPressed: refresh, child: const Text('Thử lại')),
+                PassyText(error!),
+                TextButton(onPressed: refresh, child: const PassyText('Thử lại')),
               ],
             ),
           )
@@ -651,7 +654,7 @@ class _Home extends State<Home> {
               foregroundColor: Colors.white,
               onPressed: compose,
               icon: const Icon(Icons.add),
-              label: const Text('Đăng tin'),
+              label: const PassyText('Đăng tin'),
             )
           : null,
       bottomNavigationBar: wide
@@ -665,22 +668,22 @@ class _Home extends State<Home> {
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
-                  label: 'Gần bạn',
+                  label: tr('Gần bạn'),
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.apartment_outlined),
                   selectedIcon: Icon(Icons.apartment),
-                  label: 'Cộng đồng',
+                  label: tr('Cộng đồng'),
                 ),
                 NavigationDestination(
                   icon: Badge(isLabelVisible: inboxUpdates.unreadCount > 0, label: Text('${inboxUpdates.unreadCount}'), child: const Icon(Icons.chat_bubble_outline)),
                   selectedIcon: Badge(isLabelVisible: inboxUpdates.unreadCount > 0, label: Text('${inboxUpdates.unreadCount}'), child: const Icon(Icons.chat_bubble)),
-                  label: 'Trò chuyện',
+                  label: tr('Trò chuyện'),
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.person_outline),
                   selectedIcon: Icon(Icons.person),
-                  label: 'Của tôi',
+                  label: tr('Của tôi'),
                 ),
               ],
             ),
@@ -695,7 +698,7 @@ class _Home extends State<Home> {
       children: [
         Image.asset('assets/brand/passy_mark.png', width: size, height: size),
         const SizedBox(width: 8),
-        Text(
+        PassyText(
           'Passy',
           style: TextStyle(
             fontSize: size * 0.62,
@@ -716,7 +719,7 @@ class _Home extends State<Home> {
     decoration: InputDecoration(
       isDense: compact,
       prefixIcon: const Icon(Icons.search),
-      hintText: 'Tìm món đồ ở $area',
+      hintText: tr('Tìm món đồ ở $area'),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide.none,
@@ -739,7 +742,7 @@ class _Home extends State<Home> {
 
   Widget navLink(String label, int i) => TextButton(
     onPressed: () => go(i),
-    child: Text(
+    child: PassyText(
       label,
       style: TextStyle(
         fontSize: 15,
@@ -765,7 +768,8 @@ class _Home extends State<Home> {
               children: wide
                   ? [
                       logo(),
-                      const SizedBox(width: 28),
+                      LanguagePicker(onChanged: () { if (mounted) setState(() {}); }),
+                      const SizedBox(width: 12),
                       Expanded(child: searchBox(compact: true)),
                       const SizedBox(width: 12),
                       areaButton(),
@@ -780,7 +784,7 @@ class _Home extends State<Home> {
                           shape: const StadiumBorder(),
                         ),
                         icon: const Icon(Icons.auto_awesome_outlined, size: 17),
-                        label: const Text('Câu chuyện Passy', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        label: const PassyText('Câu chuyện Passy', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                       navLink(inboxUpdates.unreadCount == 0 ? 'Trò chuyện' : 'Trò chuyện (${inboxUpdates.unreadCount})', 2),
                       navLink(
@@ -798,7 +802,7 @@ class _Home extends State<Home> {
                         ),
                         onPressed: compose,
                         icon: const Icon(Icons.add, size: 20),
-                        label: const Text(
+                        label: const PassyText(
                           'Đăng tin',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
@@ -806,10 +810,11 @@ class _Home extends State<Home> {
                     ]
                   : [
                       logo(size: 30),
+                      LanguagePicker(onChanged: () { if (mounted) setState(() {}); }),
                       const SizedBox(width: 8),
                       Expanded(child: Align(alignment: Alignment.centerRight, child: areaButton())),
                       IconButton(
-                        tooltip: 'Tải lại',
+                        tooltip: tr('Tải lại'),
                         onPressed: refresh,
                         icon: const Icon(Icons.refresh),
                       ),
@@ -857,7 +862,7 @@ class _Home extends State<Home> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: showPassyStory,
-                          child: const Text('Về chúng tôi'),
+                          child: const PassyText('Về chúng tôi'),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -876,7 +881,7 @@ class _Home extends State<Home> {
                         secondary: FilledButton.icon(
                           onPressed: () => compose(donation: true),
                           icon: const Icon(Icons.add),
-                          label: const Text('Đăng món quyên góp'),
+                          label: const PassyText('Đăng món quyên góp'),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -912,7 +917,7 @@ class _Home extends State<Home> {
   Future<void> showPassyStory() async {
     if (!mounted) return;
     if (kIsWeb) {
-      await launchUrl(Uri.base.resolve('story.html'), webOnlyWindowName: '_self');
+      await launchUrl(Uri.base.resolve('story.html').replace(queryParameters: {'lang': PassyLocale.current.value.languageCode}), webOnlyWindowName: '_self');
       return;
     }
     await showDialog<void>(context: context, builder: (_) => const PassyStoryTour());
@@ -983,7 +988,7 @@ class _Home extends State<Home> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        PassyText(
           'Khám phá Passy',
           style: TextStyle(fontSize: wide ? 22 : 19, fontWeight: FontWeight.w800),
         ),
@@ -1019,7 +1024,7 @@ class _Home extends State<Home> {
                     SizedBox(height: wide ? 10 : 6),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
+                      child: PassyText(
                         label,
                         textAlign: TextAlign.center,
                         maxLines: 2,
@@ -1032,7 +1037,7 @@ class _Home extends State<Home> {
                     ),
                     if (wide) ...[
                       const SizedBox(height: 3),
-                      Text(subtitle, style: const TextStyle(color: muted, fontSize: 12)),
+                      PassyText(subtitle, style: const TextStyle(color: muted, fontSize: 12)),
                     ],
                   ],
                 ),
@@ -1052,7 +1057,7 @@ class _Home extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: Text(
+            child: PassyText(
               search.isNotEmpty
                   ? 'Kết quả cho “$search”'
                   : transactionFilter == 'Quyên góp'
@@ -1063,7 +1068,7 @@ class _Home extends State<Home> {
               style: TextStyle(fontSize: wide ? 22 : 19, fontWeight: FontWeight.w800),
             ),
           ),
-          Text(
+          PassyText(
             '${shown.length} món',
             style: const TextStyle(color: Colors.black54),
           ),
@@ -1073,7 +1078,7 @@ class _Home extends State<Home> {
       Wrap(
         spacing: 8,
         children: ['Tất cả', 'Bán', 'Quyên góp'].map((mode) => ChoiceChip(
-          label: Text(mode),
+          label: PassyText(mode),
           selected: transactionFilter == mode,
           onSelected: (_) => setState(() => transactionFilter = mode),
         )).toList(),
@@ -1089,7 +1094,7 @@ class _Home extends State<Home> {
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     avatar: emoji(categoryIcons[v] ?? 'all', 20),
-                    label: Text(v),
+                    label: PassyText(v),
                     selected: category == v,
                     showCheckmark: false,
                     selectedColor: const Color(0xFF222222),
@@ -1124,17 +1129,17 @@ class _Home extends State<Home> {
             children: [
               const Icon(Icons.storefront_outlined, size: 56, color: brand),
               const SizedBox(height: 14),
-              const Text(
+              const PassyText(
                 'Chưa có món nào ở đây',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
-              const Text(
+              const PassyText(
                 'Hãy là người đầu tiên đăng món đồ bạn không còn dùng.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              FilledButton(onPressed: compose, child: const Text('Đăng tin ngay')),
+              FilledButton(onPressed: compose, child: const PassyText('Đăng tin ngay')),
             ],
           ),
         )
@@ -1163,10 +1168,10 @@ class _Home extends State<Home> {
     final t = DateTime.tryParse('${iso ?? ''}');
     if (t == null) return '';
     final d = DateTime.now().difference(t.toLocal());
-    if (d.inMinutes < 1) return 'vừa xong';
-    if (d.inMinutes < 60) return '${d.inMinutes} phút trước';
-    if (d.inHours < 24) return '${d.inHours} giờ trước';
-    if (d.inDays < 30) return '${d.inDays} ngày trước';
+    if (d.inMinutes < 1) return tr('vừa xong');
+    if (d.inMinutes < 60) return tr('${d.inMinutes} phút trước');
+    if (d.inHours < 24) return tr('${d.inHours} giờ trước');
+    if (d.inDays < 30) return tr('${d.inDays} ngày trước');
     return '${t.day}/${t.month}/${t.year}';
   }
 
@@ -1208,7 +1213,7 @@ class _Home extends State<Home> {
                         color: status == 'Đã bán' ? Colors.black87 : const Color(0xFF2E9E6B),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
+                      child: PassyText(
                         status,
                         style: const TextStyle(
                           color: Colors.white,
@@ -1277,7 +1282,7 @@ class _Home extends State<Home> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        PassyText(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         child,
       ],
@@ -1305,7 +1310,7 @@ class _Home extends State<Home> {
                     children: [
                       const Icon(Icons.check_circle, size: 18, color: Color(0xFF2E9E6B)),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(tip)),
+                      Expanded(child: PassyText(tip)),
                     ],
                   ),
                 ),
@@ -1321,7 +1326,7 @@ class _Home extends State<Home> {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Text(text, style: const TextStyle(color: Colors.black54)),
+        child: PassyText(text, style: const TextStyle(color: Colors.black54)),
       ),
     );
     Widget col(String title, List<Widget> items) => SizedBox(
@@ -1329,7 +1334,7 @@ class _Home extends State<Home> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          PassyText(title, style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           ...items,
         ],
@@ -1356,7 +1361,7 @@ class _Home extends State<Home> {
                       children: [
                         logo(size: 28),
                         const SizedBox(height: 12),
-                        const Text(
+                        const PassyText(
                           'Chợ đồ cũ của hàng xóm. Mua bán miễn phí, gặp nhau trực tiếp.',
                           style: TextStyle(color: Colors.black54, height: 1.6),
                         ),
@@ -1380,7 +1385,7 @@ class _Home extends State<Home> {
               const SizedBox(height: 28),
               const Divider(color: Color(0xFFE5E5E5)),
               const SizedBox(height: 12),
-              const Text(
+              const PassyText(
                 '© 2026 Passy · Dự án cộng đồng thử nghiệm tại Hà Nội',
                 style: TextStyle(color: Colors.black45, fontSize: 13),
               ),
@@ -1421,7 +1426,7 @@ class _Home extends State<Home> {
             icon: Icons.chat_bubble_outline_rounded,
             title: 'Đăng nhập để trò chuyện',
             text: 'Nhắn tin trực tiếp với hàng xóm để hỏi món đồ và hẹn gặp.',
-            action: FilledButton(onPressed: login, child: const Text('Đăng nhập')),
+            action: FilledButton(onPressed: login, child: const PassyText('Đăng nhập')),
           )
         else if (threads.isEmpty)
           EmptyState(
@@ -1430,7 +1435,7 @@ class _Home extends State<Home> {
             text: 'Mở món đồ bạn thích và bấm “Nhắn tin hỏi mua” để bắt đầu.',
             action: OutlinedButton(
               onPressed: () => browse('Tất cả'),
-              child: const Text('Xem đồ quanh bạn'),
+              child: const PassyText('Xem đồ quanh bạn'),
             ),
           )
         else
@@ -1474,7 +1479,7 @@ class _Home extends State<Home> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  inboxUpdates.preview(t) ?? '${t['buyer_id'] == uid ? 'Bạn hỏi mua' : 'Có người hỏi mua'} · ${money(t['listings']['price'])}',
+                                  inboxUpdates.preview(t) ?? '${t['buyer_id'] == uid ? tr('Bạn hỏi mua') : tr('Có người hỏi mua')} · ${money(t['listings']['price'])}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(color: muted, fontSize: 13),
@@ -1483,7 +1488,7 @@ class _Home extends State<Home> {
                             ),
                           ),
                           if (inboxUpdates.isUnread(t['id'])) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.circle, color: brand, size: 9)),
-                          Text(timeAgo(inboxUpdates.timestamp(t)), style: const TextStyle(color: muted, fontSize: 12)),
+                          PassyText(timeAgo(inboxUpdates.timestamp(t)), style: const TextStyle(color: muted, fontSize: 12)),
                           const SizedBox(width: 4),
                           const Icon(Icons.chevron_right, color: Colors.black26),
                         ],
@@ -1500,7 +1505,7 @@ class _Home extends State<Home> {
 
   void openAccountListings(String title, List<Map<String, dynamic>> items) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: PassyText(title)),
       body: PageBody(children: [
         if (items.isEmpty)
           const EmptyState(icon: Icons.inbox_outlined, title: 'Chưa có món đồ', text: 'Tin đăng và món đã lưu sẽ xuất hiện ở đây.')
@@ -1522,7 +1527,7 @@ class _Home extends State<Home> {
             text: 'Đăng nhập để đăng tin, lưu món đồ yêu thích và trò chuyện với người gần bạn.',
             action: FilledButton(
               onPressed: login,
-              child: const Text('Đăng nhập / Tạo tài khoản'),
+              child: const PassyText('Đăng nhập / Tạo tài khoản'),
             ),
           ),
         ],
@@ -1534,15 +1539,15 @@ class _Home extends State<Home> {
     Widget stat(String value, String label) => Expanded(
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          PassyText(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: muted, fontSize: 13)),
+          PassyText(label, style: const TextStyle(color: muted, fontSize: 13)),
         ],
       ),
     );
     Widget menu(IconData icon, String text, VoidCallback onTap, {Color? color}) => ListTile(
       leading: Icon(icon, color: color),
-      title: Text(text, style: TextStyle(color: color)),
+      title: PassyText(text, style: TextStyle(color: color)),
       trailing: const Icon(Icons.chevron_right, color: Colors.black26),
       onTap: onTap,
     );
@@ -1565,9 +1570,9 @@ class _Home extends State<Home> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                        PassyText(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                         const SizedBox(height: 4),
-                        Text('$area · chưa xác minh khu vực', style: const TextStyle(color: muted)),
+                        PassyText('$area · chưa xác minh khu vực', style: const TextStyle(color: muted)),
                       ],
                     ),
                   ),
@@ -1580,7 +1585,7 @@ class _Home extends State<Home> {
                       context,
                       MaterialPageRoute(builder: (_) => MemberPage(id: user.id, name: name)),
                     ),
-                    child: const Text('Hồ sơ công khai'),
+                    child: const PassyText('Hồ sơ công khai'),
                   ),
                 ],
               ),
@@ -1601,7 +1606,7 @@ class _Home extends State<Home> {
         ),
         const SizedBox(height: 20),
         SectionTitle('Hoạt động của tôi', trailing: TextButton.icon(
-          onPressed: compose, icon: const Icon(Icons.add), label: const Text('Đăng tin'),
+          onPressed: compose, icon: const Icon(Icons.add), label: const PassyText('Đăng tin'),
         )),
         Card(child: Column(children: [
           menu(Icons.sell_outlined, 'Tin của tôi · ${mine.length}', () => openAccountListings('Tin của tôi', mine)),
@@ -1635,14 +1640,14 @@ class _Home extends State<Home> {
                 showDialog<void>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
-                    title: const Text('Quyền riêng tư của bạn'),
-                    content: const Text(
+                    title: const PassyText('Quyền riêng tư của bạn'),
+                    content: const PassyText(
                       'Email đăng nhập không hiển thị trên hồ sơ. Bạn có thể sửa hoặc ẩn tin đăng trong mục “Tin của tôi”. Để yêu cầu xóa tài khoản và dữ liệu, vui lòng liên hệ quản trị viên theo hướng dẫn tại Chính sách riêng tư trên website.',
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text('Đã hiểu'),
+                        child: const PassyText('Đã hiểu'),
                       ),
                     ],
                   ),
@@ -1678,7 +1683,7 @@ class _Home extends State<Home> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        const PassyText(
           'Passy · Mua bán miễn phí, gặp nhau trực tiếp.\nKhông yêu cầu đặt cọc để mở khóa giao dịch.',
           textAlign: TextAlign.center,
           style: TextStyle(color: muted, height: 1.6, fontSize: 13),
@@ -1794,33 +1799,33 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, refreshDialog) => AlertDialog(
-          title: const Text('Đổi mật khẩu'),
+          title: const PassyText('Đổi mật khẩu'),
           content: Form(
             key: key,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Dùng mật khẩu dài ít nhất 8 ký tự và không dùng lại mật khẩu ở nơi khác.'),
+                const PassyText('Dùng mật khẩu dài ít nhất 8 ký tự và không dùng lại mật khẩu ở nơi khác.'),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: password,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
-                  validator: (value) => value == null || value.length < 8 ? 'Cần ít nhất 8 ký tự' : null,
+                  decoration:  InputDecoration(labelText: tr('Mật khẩu mới')),
+                  validator: (value) => value == null || value.length < 8 ? tr('Cần ít nhất 8 ký tự') : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: confirm,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Nhập lại mật khẩu mới'),
-                  validator: (value) => value != password.text ? 'Mật khẩu chưa khớp' : null,
+                  decoration:  InputDecoration(labelText: tr('Nhập lại mật khẩu mới')),
+                  validator: (value) => value != password.text ? tr('Mật khẩu chưa khớp') : null,
                 ),
-                if (message != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(message!, style: const TextStyle(color: Colors.red))),
+                if (message != null) Padding(padding: const EdgeInsets.only(top: 12), child: PassyText(message!, style: const TextStyle(color: Colors.red))),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: busy ? null : () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+            TextButton(onPressed: busy ? null : () => Navigator.pop(dialogContext), child: const PassyText('Hủy')),
             FilledButton(
               onPressed: busy ? null : () async {
                 if (!key.currentState!.validate()) return;
@@ -1833,7 +1838,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   refreshDialog(() { message = friendly(e); busy = false; });
                 }
               },
-              child: Text(busy ? 'Đang cập nhật…' : 'Cập nhật'),
+              child: PassyText(busy ? 'Đang cập nhật…' : 'Cập nhật'),
             ),
           ],
         ),
@@ -1849,8 +1854,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final joined = DateTime.tryParse(user.createdAt)?.toLocal();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.onboarding ? 'Hoàn thiện hồ sơ Passy' : 'Tài khoản của tôi'),
-        actions: [if (widget.onboarding) TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const Text('Để sau'))],
+        title: PassyText(widget.onboarding ? 'Hoàn thiện hồ sơ Passy' : 'Tài khoản của tôi'),
+        actions: [if (widget.onboarding) TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const PassyText('Để sau'))],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -1864,9 +1869,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     Avatar(name: name.text.isEmpty ? 'Hàng xóm' : name.text, size: 58),
                     const SizedBox(width: 14),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name.text.isEmpty ? 'Hàng xóm' : name.text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                      PassyText(name.text.isEmpty ? 'Hàng xóm' : name.text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text(user.email ?? 'Tài khoản liên kết', style: const TextStyle(color: muted)),
+                      PassyText(user.email ?? 'Tài khoản liên kết', style: const TextStyle(color: muted)),
                     ])),
                     Icon(user.emailConfirmedAt != null ? Icons.verified : Icons.info_outline, color: user.emailConfirmedAt != null ? Colors.green : muted),
                   ]),
@@ -1879,45 +1884,45 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     TextFormField(
                       controller: name,
                       maxLength: 80,
-                      decoration: const InputDecoration(labelText: 'Tên hiển thị', helperText: 'Tên này xuất hiện trên hồ sơ và tin đăng của bạn.'),
-                      validator: (value) => value == null || value.trim().length < 2 ? 'Tên cần ít nhất 2 ký tự' : null,
+                      decoration:  InputDecoration(labelText: tr('Tên hiển thị'), helperText: tr('Tên này xuất hiện trên hồ sơ và tin đăng của bạn.')),
+                      validator: (value) => value == null || value.trim().length < 2 ? tr('Tên cần ít nhất 2 ký tự') : null,
                     ),
                     const SizedBox(height: 12),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Khu vực của bạn'),
-                      subtitle: Text('$area · chỉ hiển thị khu vực, không hiển thị địa chỉ nhà'),
+                      title: const PassyText('Khu vực của bạn'),
+                      subtitle: PassyText('$area · chỉ hiển thị khu vực, không hiển thị địa chỉ nhà'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
                         final selected = await showLocationPicker(context, currentArea: area);
                         if (selected != null && mounted) setState(() => area = selected);
                       },
                     ),
-                    Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: saving ? null : saveProfile, icon: const Icon(Icons.save_outlined), label: Text(saving ? 'Đang lưu…' : 'Lưu hồ sơ'))),
+                    Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: saving ? null : saveProfile, icon: const Icon(Icons.save_outlined), label: PassyText(saving ? 'Đang lưu…' : 'Lưu hồ sơ'))),
                   ]),
                 ),
-                if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
+                if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: PassyText(error!, style: const TextStyle(color: Colors.red))),
                 if (!widget.onboarding) ...[
                 const SizedBox(height: 28),
                 const SectionTitle('Đăng nhập và bảo mật'),
                 Card(
                   child: Column(children: [
-                    ListTile(leading: const Icon(Icons.email_outlined), title: const Text('Email đăng nhập'), subtitle: Text(user.email ?? 'Chưa có email'), trailing: user.emailConfirmedAt != null ? const Chip(label: Text('Đã xác nhận')) : const Chip(label: Text('Chưa xác nhận'))),
+                    ListTile(leading: const Icon(Icons.email_outlined), title: const PassyText('Email đăng nhập'), subtitle: PassyText(user.email ?? 'Chưa có email'), trailing: user.emailConfirmedAt != null ? const Chip(label: PassyText('Đã xác nhận')) : const Chip(label: PassyText('Chưa xác nhận'))),
                     const Divider(height: 1),
-                    ListTile(leading: const Icon(Icons.login), title: const Text('Phương thức đã liên kết'), subtitle: Text(providers.isEmpty ? 'Email' : providers.map((p) => p[0].toUpperCase() + p.substring(1)).join(' · '))),
+                    ListTile(leading: const Icon(Icons.login), title: const PassyText('Phương thức đã liên kết'), subtitle: PassyText(providers.isEmpty ? 'Email' : providers.map((p) => p[0].toUpperCase() + p.substring(1)).join(' · '))),
                     const Divider(height: 1),
-                    ListTile(leading: const Icon(Icons.password), title: const Text('Mật khẩu'), subtitle: const Text('Đổi mật khẩu tài khoản email'), trailing: const Icon(Icons.chevron_right), onTap: changePassword),
+                    ListTile(leading: const Icon(Icons.password), title: const PassyText('Mật khẩu'), subtitle: const PassyText('Đổi mật khẩu tài khoản email'), trailing: const Icon(Icons.chevron_right), onTap: changePassword),
                   ]),
                 ),
                 const SizedBox(height: 28),
                 const SectionTitle('Thông tin tài khoản'),
                 Card(child: Column(children: [
-                  ListTile(leading: const Icon(Icons.calendar_month_outlined), title: const Text('Ngày tham gia'), subtitle: Text(joined == null ? 'Đang cập nhật' : '${joined.day}/${joined.month}/${joined.year}')),
+                  ListTile(leading: const Icon(Icons.calendar_month_outlined), title: const PassyText('Ngày tham gia'), subtitle: PassyText(joined == null ? 'Đang cập nhật' : '${joined.day}/${joined.month}/${joined.year}')),
                   const Divider(height: 1),
-                  const ListTile(leading: Icon(Icons.shield_outlined), title: Text('Dữ liệu cá nhân'), subtitle: Text('Email không hiển thị công khai. Yêu cầu xóa dữ liệu theo hướng dẫn trong Chính sách riêng tư.')),
+                  const ListTile(leading: Icon(Icons.shield_outlined), title: PassyText('Dữ liệu cá nhân'), subtitle: PassyText('Email không hiển thị công khai. Yêu cầu xóa dữ liệu theo hướng dẫn trong Chính sách riêng tư.')),
                 ])),
                 ],
-                if (error != null) TextButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Tải lại thông tin')),
+                if (error != null) TextButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const PassyText('Tải lại thông tin')),
               ],
             ),
     );
@@ -1980,7 +1985,7 @@ class _Login extends State<Login> {
     icon: provider == OAuthProvider.google
         ? SvgPicture.asset('assets/brand/google_g.svg', width: 20, height: 20)
         : const Icon(Icons.facebook, color: Color(0xFF0866FF), size: 24),
-    label: Text('Tiếp tục với ${socialProviderName(provider)}'),
+    label: PassyText('Tiếp tục với ${socialProviderName(provider)}'),
   );
 
   @override
@@ -2071,7 +2076,7 @@ class _Login extends State<Login> {
       children: [
         emoji('shop', 72),
         const SizedBox(height: 24),
-        const Text(
+        const PassyText(
           'Đồ cũ của bạn,\nniềm vui của hàng xóm.',
           style: TextStyle(
             color: Colors.white,
@@ -2081,7 +2086,7 @@ class _Login extends State<Login> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
+        const PassyText(
           'Đăng tin miễn phí, nhắn tin trực tiếp và hẹn gặp ở chỗ thuận tiện quanh nhà.',
           style: TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
         ),
@@ -2095,7 +2100,7 @@ class _Login extends State<Login> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: Text(signup ? 'Tạo tài khoản' : 'Đăng nhập')),
+    appBar: AppBar(title: PassyText(signup ? 'Tạo tài khoản' : 'Đăng nhập')),
     body: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2110,12 +2115,12 @@ class _Login extends State<Login> {
             shrinkWrap: true,
             padding: const EdgeInsets.all(24),
             children: [
-              Text(
+              PassyText(
                 signup ? 'Tham gia Passy' : 'Chào hàng xóm!',
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              Text(
+              PassyText(
                 signup
                     ? 'Tạo tài khoản miễn phí để đăng tin và nhắn tin.'
                     : 'Đăng nhập để mua bán cùng người gần bạn.',
@@ -2129,26 +2134,26 @@ class _Login extends State<Login> {
               ],
               if (oauthPending) ...[
                 const SizedBox(height: 12),
-                const Text('Hoàn tất đăng nhập trong trình duyệt. Nếu đã đóng trang đó, bạn có thể thử lại.',
+                const PassyText('Hoàn tất đăng nhập trong trình duyệt. Nếu đã đóng trang đó, bạn có thể thử lại.',
                   style: TextStyle(color: muted, height: 1.5)),
                 TextButton(
                   onPressed: busy ? null : () => setState(() => oauthPending = false),
-                  child: const Text('Quay lại chọn cách đăng nhập'),
+                  child: const PassyText('Quay lại chọn cách đăng nhập'),
                 ),
               ],
               const SizedBox(height: 24),
               const Row(children: [Expanded(child: Divider()), Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('hoặc dùng email', style: TextStyle(color: muted, fontSize: 13)),
+                child: PassyText('hoặc dùng email', style: TextStyle(color: muted, fontSize: 13)),
               ), Expanded(child: Divider())]),
               const SizedBox(height: 24),
               if (signup) ...[
                 TextFormField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên hiển thị'),
+                  decoration:  InputDecoration(labelText: tr('Tên hiển thị')),
                   validator: (v) =>
                       v == null || v.trim().isEmpty || v.length > 80
-                      ? 'Nhập tên từ 1–80 ký tự'
+                      ? tr('Nhập tên từ 1–80 ký tự')
                       : null,
                 ),
                 const SizedBox(height: 16),
@@ -2156,30 +2161,30 @@ class _Login extends State<Login> {
               TextFormField(
                 controller: email,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration:  InputDecoration(labelText: tr('Email')),
                 validator: (v) =>
-                    v == null || !v.contains('@') ? 'Nhập email hợp lệ' : null,
+                    v == null || !v.contains('@') ? tr('Nhập email hợp lệ') : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: password,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Mật khẩu'),
+                decoration:  InputDecoration(labelText: tr('Mật khẩu')),
                 validator: (v) =>
-                    v == null || v.length < 8 ? 'Ít nhất 8 ký tự' : null,
+                    v == null || v.length < 8 ? tr('Ít nhất 8 ký tự') : null,
               ),
               if (!signup)
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: busy || oauthPending ? null : sendPasswordReset,
-                    child: const Text('Quên mật khẩu?'),
+                    child: const PassyText('Quên mật khẩu?'),
                   ),
                 ),
               if (message != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text(
+                  child: PassyText(
                     message!,
                     style: const TextStyle(color: Colors.deepOrange),
                   ),
@@ -2187,7 +2192,7 @@ class _Login extends State<Login> {
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: busy || oauthPending ? null : submit,
-                child: Text(
+                child: PassyText(
                   busy
                       ? 'Đang xử lý…'
                       : signup
@@ -2202,14 +2207,14 @@ class _Login extends State<Login> {
                         signup = !signup;
                         message = null;
                       }),
-                child: Text(
+                child: PassyText(
                   signup
                       ? 'Đã có tài khoản? Đăng nhập'
                       : 'Chưa có tài khoản? Đăng ký',
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              const PassyText(
                 'Tên hiển thị và tin đăng của bạn được công khai. Email không hiển thị trên hồ sơ.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: muted, fontSize: 13, height: 1.5),
@@ -2236,7 +2241,7 @@ class _Perk extends StatelessWidget {
         const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
+          child: PassyText(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
         ),
       ],
     ),
@@ -2272,7 +2277,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Mật khẩu đã được cập nhật.')),
+        const SnackBar(content: PassyText('Mật khẩu đã được cập nhật.')),
       );
     } catch (e) {
       if (mounted) setState(() => message = friendly(e));
@@ -2283,7 +2288,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Đặt lại mật khẩu')),
+    appBar: AppBar(title: const PassyText('Đặt lại mật khẩu')),
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -2292,7 +2297,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const Text(
+              const PassyText(
                 'Tạo mật khẩu mới cho tài khoản của bạn.',
                 style: TextStyle(fontSize: 18),
               ),
@@ -2300,25 +2305,25 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
               TextFormField(
                 controller: password,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+                decoration:  InputDecoration(labelText: tr('Mật khẩu mới')),
                 validator: (value) => value == null || value.length < 8
-                    ? 'Mật khẩu cần ít nhất 8 ký tự'
+                    ? tr('Mật khẩu cần ít nhất 8 ký tự')
                     : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: confirmation,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nhập lại mật khẩu',
+                decoration:  InputDecoration(
+                  labelText: tr('Nhập lại mật khẩu'),
                 ),
                 validator: (value) =>
-                    value != password.text ? 'Hai mật khẩu chưa khớp' : null,
+                    value != password.text ? tr('Hai mật khẩu chưa khớp') : null,
               ),
               if (message != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text(
+                  child: PassyText(
                     message!,
                     style: const TextStyle(color: Colors.deepOrange),
                   ),
@@ -2326,7 +2331,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: busy ? null : save,
-                child: Text(busy ? 'Đang cập nhật…' : 'Lưu mật khẩu mới'),
+                child: PassyText(busy ? 'Đang cập nhật…' : 'Lưu mật khẩu mới'),
               ),
             ],
           ),
@@ -2444,23 +2449,23 @@ class _Compose extends State<Compose> {
 
   Widget label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 10, top: 6),
-    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+    child: PassyText(text, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
   );
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: const Text('Đăng món đồ')),
+    appBar: AppBar(title: const PassyText('Đăng món đồ')),
     body: Form(
       key: form,
       child: PageBody(
         maxWidth: 680,
         children: [
-              const Text(
+              const PassyText(
                 'Bán hoặc cho tặng món đồ',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              Text(
+              PassyText(
                 'Tin sẽ hiển thị cho hàng xóm ở ${widget.area}. Đăng tin hoàn toàn miễn phí.',
                 style: const TextStyle(color: muted),
               ),
@@ -2483,9 +2488,9 @@ class _Compose extends State<Compose> {
                           children: [
                             Icon(Icons.add_a_photo_rounded, size: 40, color: brand),
                             SizedBox(height: 10),
-                            Text('Thêm ảnh thật của món đồ', style: TextStyle(fontWeight: FontWeight.w700)),
+                            PassyText('Thêm ảnh thật của món đồ', style: TextStyle(fontWeight: FontWeight.w700)),
                             SizedBox(height: 4),
-                            Text('JPG hoặc PNG, tối đa 5 MB', style: TextStyle(color: muted, fontSize: 13)),
+                            PassyText('JPG hoặc PNG, tối đa 5 MB', style: TextStyle(color: muted, fontSize: 13)),
                           ],
                         )
                       : Stack(
@@ -2503,7 +2508,7 @@ class _Compose extends State<Compose> {
                                 ),
                                 onPressed: busy ? null : pick,
                                 icon: const Icon(Icons.photo_library_outlined, size: 18),
-                                label: const Text('Đổi ảnh'),
+                                label: const PassyText('Đổi ảnh'),
                               ),
                             ),
                           ],
@@ -2515,16 +2520,16 @@ class _Compose extends State<Compose> {
               TextFormField(
                 controller: title,
                 maxLength: 160,
-                decoration: const InputDecoration(hintText: 'Ví dụ: Ghế gỗ còn mới, bàn học gấp gọn'),
+                decoration:  InputDecoration(hintText: tr('Ví dụ: Ghế gỗ còn mới, bàn học gấp gọn')),
                 validator: (v) =>
-                    (v?.trim().length ?? 0) < 4 ? 'Nhập ít nhất 4 ký tự' : null,
+                    (v?.trim().length ?? 0) < 4 ? tr('Nhập ít nhất 4 ký tự') : null,
               ),
               const SizedBox(height: 8),
               label('Hình thức'),
               SegmentedButton<String>(
                 segments: const [
-                  ButtonSegment(value: 'Bán', label: Text('Bán'), icon: Icon(Icons.sell_outlined)),
-                  ButtonSegment(value: 'Quyên góp', label: Text('Quyên góp'), icon: Icon(Icons.volunteer_activism_outlined)),
+                  ButtonSegment(value: 'Bán', label: PassyText('Bán'), icon: Icon(Icons.sell_outlined)),
+                  ButtonSegment(value: 'Quyên góp', label: PassyText('Quyên góp'), icon: Icon(Icons.volunteer_activism_outlined)),
                 ],
                 selected: {transactionMode},
                 onSelectionChanged: busy ? null : (selection) => setState(() {
@@ -2544,7 +2549,7 @@ class _Compose extends State<Compose> {
                 children: ['Nội thất', 'Điện tử', 'Gia dụng', 'Đồ em bé', 'Thời trang', 'Sách', 'Thể thao', 'Khác']
                     .map(
                       (v) => ChoiceChip(
-                        label: Text(v),
+                        label: PassyText(v),
                         selected: category == v,
                         showCheckmark: false,
                         selectedColor: ink,
@@ -2561,14 +2566,14 @@ class _Compose extends State<Compose> {
               label('Tình trạng món đồ'),
               DropdownButtonFormField<String>(
                 initialValue: condition,
-                decoration: const InputDecoration(
-                  helperText: 'Chọn đúng tình trạng và ghi rõ khuyết điểm trong mô tả.',
+                decoration:  InputDecoration(
+                  helperText: tr('Chọn đúng tình trạng và ghi rõ khuyết điểm trong mô tả.'),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Mới', child: Text('Mới')),
-                  DropdownMenuItem(value: 'Đã qua sử dụng - như mới', child: Text('Đã qua sử dụng - như mới')),
-                  DropdownMenuItem(value: 'Đã qua sử dụng - tốt', child: Text('Đã qua sử dụng - tốt')),
-                  DropdownMenuItem(value: 'Đã qua sử dụng - có khuyết điểm', child: Text('Đã qua sử dụng - có khuyết điểm')),
+                  DropdownMenuItem(value: 'Mới', child: PassyText('Mới')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - như mới', child: PassyText('Đã qua sử dụng - như mới')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - tốt', child: PassyText('Đã qua sử dụng - tốt')),
+                  DropdownMenuItem(value: 'Đã qua sử dụng - có khuyết điểm', child: PassyText('Đã qua sử dụng - có khuyết điểm')),
                 ],
                 onChanged: busy ? null : (value) {
                   if (value != null) setState(() => condition = value);
@@ -2581,9 +2586,9 @@ class _Compose extends State<Compose> {
                   controller: price,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    hintText: 'Nhập giá mong muốn',
-                    suffixText: 'đ',
+                  decoration:  InputDecoration(
+                    hintText: tr('Nhập giá mong muốn'),
+                    suffixText: tr('đ'),
                   ),
                   onChanged: (value) {
                     if (value == '0') {
@@ -2593,14 +2598,14 @@ class _Compose extends State<Compose> {
                   validator: (v) {
                     final n = int.tryParse(v ?? '');
                     return n == null || n <= 0 || n > 100000000000
-                        ? 'Nhập giá hợp lệ hoặc chọn Quyên góp'
+                        ? tr('Nhập giá hợp lệ hoặc chọn Quyên góp')
                         : null;
                   },
                 ),
               ] else
                 const Padding(
                   padding: EdgeInsets.only(top: 18),
-                  child: Text('Món này sẽ được đăng miễn phí.', style: TextStyle(color: muted)),
+                  child: PassyText('Món này sẽ được đăng miễn phí.', style: TextStyle(color: muted)),
                 ),
               const SizedBox(height: 24),
               label('Mô tả'),
@@ -2608,12 +2613,12 @@ class _Compose extends State<Compose> {
                 controller: description,
                 maxLines: 6,
                 maxLength: 3950,
-                decoration: const InputDecoration(
+                decoration:  InputDecoration(
                   hintText:
-                      'Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…',
+                      tr('Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…'),
                 ),
                 validator: (v) => (v?.trim().length ?? 0) < 10
-                    ? 'Mô tả ít nhất 10 ký tự'
+                    ? tr('Mô tả ít nhất 10 ký tự')
                     : null,
               ),
               const SizedBox(height: 12),
@@ -2625,7 +2630,7 @@ class _Compose extends State<Compose> {
                     const Icon(Icons.location_on, color: brand, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
+                      child: PassyText(
                         'Khu vực: ${widget.area}. Không ghi địa chỉ nhà, số điện thoại hay số tài khoản trong tin.',
                         style: const TextStyle(height: 1.5),
                       ),
@@ -2636,7 +2641,7 @@ class _Compose extends State<Compose> {
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: busy ? null : submit,
-                child: Text(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
+                child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
               ),
               const SizedBox(height: 24),
         ],
@@ -2705,18 +2710,18 @@ class _Detail extends State<Detail> {
     final reason = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Báo cáo tin'),
+        title: const PassyText('Báo cáo tin'),
         content: TextField(
           controller: controller,
           maxLength: 2000,
-          decoration: const InputDecoration(
-            hintText: 'Nêu lý do (ít nhất 5 ký tự)',
+          decoration:  InputDecoration(
+            hintText: tr('Nêu lý do (ít nhất 5 ký tự)'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text('Hủy'),
+            child: const PassyText('Hủy'),
           ),
           TextButton(
             onPressed: () {
@@ -2724,7 +2729,7 @@ class _Detail extends State<Detail> {
                 Navigator.pop(c, controller.text.trim());
               }
             },
-            child: const Text('Gửi báo cáo'),
+            child: const PassyText('Gửi báo cáo'),
           ),
         ],
       ),
@@ -2772,7 +2777,7 @@ class _Detail extends State<Detail> {
           color: const Color(0xFFFFEEEE),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Text(
+        child: const PassyText(
           'Tin đã bị quản trị ẩn. Vui lòng liên hệ quản trị viên.',
           style: TextStyle(color: Color(0xFFC62828)),
         ),
@@ -2785,12 +2790,12 @@ class _Detail extends State<Detail> {
         children: [
           DropdownButtonFormField<String>(
             initialValue: x['status'],
-            decoration: const InputDecoration(labelText: 'Trạng thái tin'),
+            decoration:  InputDecoration(labelText: tr('Trạng thái tin')),
             items: const [
-              DropdownMenuItem(value: 'available', child: Text('Đang bán')),
-              DropdownMenuItem(value: 'reserved', child: Text('Đang hẹn')),
-              DropdownMenuItem(value: 'sold', child: Text('Đã bán')),
-              DropdownMenuItem(value: 'hidden', child: Text('Ẩn tin')),
+              DropdownMenuItem(value: 'available', child: PassyText('Đang bán')),
+              DropdownMenuItem(value: 'reserved', child: PassyText('Đang hẹn')),
+              DropdownMenuItem(value: 'sold', child: PassyText('Đã bán')),
+              DropdownMenuItem(value: 'hidden', child: PassyText('Ẩn tin')),
             ],
             onChanged: busy ? null : (v) => status(v!),
           ),
@@ -2804,7 +2809,7 @@ class _Detail extends State<Detail> {
               if (mounted) setState(() {});
             },
             icon: const Icon(Icons.edit_outlined),
-            label: const Text('Chỉnh sửa tin'),
+            label: const PassyText('Chỉnh sửa tin'),
           ),
         ],
       );
@@ -2814,12 +2819,12 @@ class _Detail extends State<Detail> {
       icon: const Icon(Icons.chat_bubble_rounded, size: 20),
       label: Text(
         x['status'] == 'sold'
-            ? 'Món này đã bán'
+            ? tr('Món này đã bán')
             : x['status'] == 'reserved'
-            ? 'Đang hẹn với người khác'
+            ? tr('Đang hẹn với người khác')
             : busy
-            ? 'Đang mở…'
-            : 'Nhắn tin hỏi mua',
+            ? tr('Đang mở…')
+            : tr('Nhắn tin hỏi mua'),
       ),
     );
   }
@@ -2859,16 +2864,16 @@ class _Detail extends State<Detail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(seller, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  PassyText(seller, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                   const SizedBox(height: 2),
-                  Text(
+                  PassyText(
                     '${x['area']} · chưa xác minh khu vực',
                     style: const TextStyle(color: muted, fontSize: 13),
                   ),
                 ],
               ),
             ),
-            const Text('Xem hồ sơ', style: TextStyle(color: brand, fontWeight: FontWeight.w700)),
+            const PassyText('Xem hồ sơ', style: TextStyle(color: brand, fontWeight: FontWeight.w700)),
             const Icon(Icons.chevron_right, color: brand),
           ],
         ),
@@ -2887,7 +2892,7 @@ class _Detail extends State<Detail> {
         ),
         const SizedBox(height: 6),
         Text(
-          [listingProductCategory(x), x['area'], timeAgo(x['created_at'])]
+          [tr(listingProductCategory(x)), x['area'], timeAgo(x['created_at'])]
               .where((s) => '${s ?? ''}'.isNotEmpty)
               .join(' · '),
           style: const TextStyle(color: muted),
@@ -2901,7 +2906,7 @@ class _Detail extends State<Detail> {
         const Divider(),
         const SizedBox(height: 20),
         Text(
-          x['description'] ?? '',
+          localizedListingDescription(x['description'] ?? ''),
           style: const TextStyle(fontSize: 16, height: 1.7, color: ink),
         ),
         const SizedBox(height: 24),
@@ -2914,7 +2919,7 @@ class _Detail extends State<Detail> {
               Icon(Icons.verified_user_rounded, color: Color(0xFF2E9E6B), size: 20),
               SizedBox(width: 10),
               Expanded(
-                child: Text(
+                child: PassyText(
                   'Gặp ở nơi công cộng, kiểm tra hàng trước khi trả tiền. '
                   'Không chuyển khoản đặt cọc cho người lạ.',
                   style: TextStyle(color: muted, height: 1.5),
@@ -2928,11 +2933,11 @@ class _Detail extends State<Detail> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chi tiết món đồ'),
+        title: const PassyText('Chi tiết món đồ'),
         actions: [
-          IconButton(tooltip: 'Sao chép liên kết', onPressed: share, icon: const Icon(Icons.ios_share)),
+          IconButton(tooltip: tr('Sao chép liên kết'), onPressed: share, icon: const Icon(Icons.ios_share)),
           if (!mine)
-            IconButton(tooltip: 'Báo cáo tin', onPressed: report, icon: const Icon(Icons.flag_outlined)),
+            IconButton(tooltip: tr('Báo cáo tin'), onPressed: report, icon: const Icon(Icons.flag_outlined)),
           const SizedBox(width: 8),
         ],
       ),
@@ -2979,7 +2984,7 @@ class _Detail extends State<Detail> {
                                   money(x['price']),
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                                 ),
-                                const Text('Giá người bán đưa ra', style: TextStyle(color: muted, fontSize: 12)),
+                                const PassyText('Giá người bán đưa ra', style: TextStyle(color: muted, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -3068,7 +3073,7 @@ class _Chat extends State<Chat> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: const Text('Trò chuyện')),
+    appBar: AppBar(title: const PassyText('Trò chuyện')),
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 820),
@@ -3120,7 +3125,7 @@ class _Chat extends State<Chat> {
                       ),
                     ),
                     icon: const Icon(Icons.event_available_outlined, size: 18),
-                    label: const Text('Hẹn gặp'),
+                    label: const PassyText('Hẹn gặp'),
                   ),
                 ],
               ),
@@ -3128,14 +3133,14 @@ class _Chat extends State<Chat> {
             if (error != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(error!, style: const TextStyle(color: Color(0xFFC62828))),
+                child: PassyText(error!, style: const TextStyle(color: Color(0xFFC62828))),
               ),
             Expanded(
               child: messages.isEmpty
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(32),
-                        child: Text(
+                        child: PassyText(
                           'Chào người bán, hỏi tình trạng món đồ và hẹn giờ gặp nhé.\n'
                           'Đừng chuyển khoản trước khi xem hàng.',
                           textAlign: TextAlign.center,
@@ -3205,8 +3210,8 @@ class _Chat extends State<Chat> {
                         minLines: 1,
                         onSubmitted: (_) => send(),
                         decoration: InputDecoration(
-                          hintText: 'Nhắn người hàng xóm…',
-                          counterText: '',
+                          hintText: tr('Nhắn người hàng xóm…'),
+                          counterText: tr(''),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,
@@ -3227,7 +3232,7 @@ class _Chat extends State<Chat> {
                       color: brand,
                       shape: const CircleBorder(),
                       child: IconButton(
-                        tooltip: 'Gửi',
+                        tooltip: tr('Gửi'),
                         onPressed: sending ? null : send,
                         icon: const Icon(Icons.send_rounded, color: Colors.white),
                       ),

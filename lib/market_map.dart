@@ -158,7 +158,7 @@ class _MarketMapPageState extends State<MarketMapPage> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: Text(
+          subtitle: PassyText(
             '${money(listing['price'])} · ${listing['area']} · vị trí gần đúng',
           ),
           trailing: const Icon(Icons.chevron_right),
@@ -181,9 +181,9 @@ class _MarketMapPageState extends State<MarketMapPage> {
       builder: (sheet) => SafeArea(
         child: ListView(
           children: [
-            ListTile(title: Text('Tin đang bán · ${widget.areaLabel}')),
+            ListTile(title: PassyText('Tin đang bán · ${widget.areaLabel}')),
             if (widget.nearby.isEmpty)
-              const ListTile(subtitle: Text('Chưa có tin đang bán ở khu vực này.')),
+              const ListTile(subtitle: PassyText('Chưa có tin đang bán ở khu vực này.')),
             for (final item in widget.nearby)
               ListTile(
                 leading: ListingImage(path: item['image_path'] ?? '', size: 48),
@@ -207,11 +207,11 @@ class _MarketMapPageState extends State<MarketMapPage> {
     final sharing = uid != null && pins.any((p) => p['owner_id'] == uid);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Bản đồ · ${widget.areaLabel}'),
+        title: PassyText('Bản đồ · ${widget.areaLabel}'),
         actions: [
           IconButton(
             onPressed: load,
-            tooltip: 'Tải lại',
+            tooltip: tr('Tải lại'),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -223,12 +223,12 @@ class _MarketMapPageState extends State<MarketMapPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const PassyText(
                   'Khám phá món đồ và người bán gần bạn',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                const PassyText(
                   'Chỉ người bán tự nguyện chia sẻ mới hiện trên bản đồ. Vị trí được làm mờ khoảng 1 km; không hiển thị địa chỉ nhà.',
                   style: TextStyle(color: muted, height: 1.35),
                 ),
@@ -239,7 +239,7 @@ class _MarketMapPageState extends State<MarketMapPage> {
                     FilledButton.tonalIcon(
                       onPressed: showNearby,
                       icon: const Icon(Icons.storefront_outlined),
-                      label: Text('Tin đang bán (${widget.nearby.length})'),
+                      label: PassyText('Tin đang bán (${widget.nearby.length})'),
                     ),
                     OutlinedButton.icon(
                       onPressed: saving || error != null ? null : shareApproximateLocation,
@@ -250,7 +250,7 @@ class _MarketMapPageState extends State<MarketMapPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.location_searching),
-                      label: Text(
+                      label: PassyText(
                         sharing
                             ? 'Cập nhật vị trí gần đúng'
                             : 'Tự nguyện hiện trên bản đồ',
@@ -260,14 +260,14 @@ class _MarketMapPageState extends State<MarketMapPage> {
                       OutlinedButton.icon(
                         onPressed: removeLocation,
                         icon: const Icon(Icons.location_off_outlined),
-                        label: const Text('Gỡ vị trí'),
+                        label: const PassyText('Gỡ vị trí'),
                       ),
                   ],
                 ),
               ],
             ),
           ),
-          if (error != null) const Padding(padding: EdgeInsets.all(8), child: Text('Chưa tải được vị trí người bán. Bạn vẫn có thể mở danh sách tin theo khu vực.')),
+          if (error != null) const Padding(padding: EdgeInsets.all(8), child: PassyText('Chưa tải được vị trí người bán. Bạn vẫn có thể mở danh sách tin theo khu vực.')),
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
@@ -347,7 +347,7 @@ class _MarketMapPageState extends State<MarketMapPage> {
           if (!loading && error == null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(
+              child: PassyText(
                 pins.isEmpty
                     ? 'Chưa có người bán chia sẻ vị trí. Tin đăng vẫn xem được theo phường/xã.'
                     : '${pins.length} người bán đang chia sẻ vị trí gần đúng',

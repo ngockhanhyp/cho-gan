@@ -23,7 +23,7 @@ class InboxUpdates {
   String? preview(Map<String, dynamic> thread) {
     final message = latest[thread['id']];
     if (message == null) return null;
-    final prefix = message['sender_id'] == account ? 'Bạn: ' : '';
+    final prefix = message['sender_id'] == account ? tr('Bạn: ') : '';
     return "$prefix${message['body']}";
   }
 

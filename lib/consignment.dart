@@ -41,17 +41,17 @@ class _ConsignmentPageState extends State<ConsignmentPage> {
     final commission = TextEditingController(text: '${row['commission_amount'] ?? ''}');
     final note = TextEditingController(text: '${row['staff_note'] ?? ''}');
     final values = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, refresh) => AlertDialog(
-      title: Text('Cập nhật: ${row['title']}'),
+      title: PassyText('Cập nhật: ${row['title']}'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('${row['description']}'),
-        SelectableText('Liên hệ: ${row['contact'] ?? 'Chưa cung cấp'}'),
+        SelectableText(tr('Liên hệ: ${row['contact'] ?? tr('Chưa cung cấp')}')),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(value: status, decoration: const InputDecoration(labelText: 'Trạng thái'), items: statuses.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(), onChanged: (v) { if (v != null) refresh(() => status = v); }),
-        TextField(controller: sale, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Giá bán đã thống nhất (đ)')),
-        TextField(controller: commission, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Hoa hồng đã thống nhất (đ)')),
-        TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText: 'Ghi chú trao đổi')),
+        DropdownButtonFormField<String>(value: status, decoration:  InputDecoration(labelText: tr('Trạng thái')), items: statuses.entries.map((entry) => DropdownMenuItem(value: entry.key, child: PassyText(entry.value))).toList(), onChanged: (v) { if (v != null) refresh(() => status = v); }),
+        TextField(controller: sale, keyboardType: TextInputType.number, decoration:  InputDecoration(labelText: tr('Giá bán đã thống nhất (đ)'))),
+        TextField(controller: commission, keyboardType: TextInputType.number, decoration:  InputDecoration(labelText: tr('Hoa hồng đã thống nhất (đ)'))),
+        TextField(controller: note, maxLines: 3, decoration:  InputDecoration(labelText: tr('Ghi chú trao đổi'))),
       ])),
-      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Hủy')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Lưu'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const PassyText('Hủy')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const PassyText('Lưu'))],
     )));
     if (values == true) {
       try {
@@ -100,39 +100,39 @@ class _ConsignmentPageState extends State<ConsignmentPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Ký gửi tại Passy')),
+    appBar: AppBar(title: const PassyText('Ký gửi tại Passy')),
     body: PageBody(maxWidth: 720, children: [
       PassyChapterPanel(chapter: passyChapters[1], compact: true),
       const SizedBox(height: 16),
       const Wrap(spacing: 8, runSpacing: 8, children: [
-        Chip(label: Text('Gửi thông tin món đồ')),
-        Chip(label: Text('Thống nhất giá và hoa hồng')),
-        Chip(label: Text('Hẹn bàn giao tại điểm nhận')),
+        Chip(label: PassyText('Gửi thông tin món đồ')),
+        Chip(label: PassyText('Thống nhất giá và hoa hồng')),
+        Chip(label: PassyText('Hẹn bàn giao tại điểm nhận')),
       ]),
       const SizedBox(height: 20),
-      TextField(controller: title, maxLength: 160, decoration: const InputDecoration(labelText: 'Tên món đồ', hintText: 'Ví dụ: Ghế ăn gỗ còn tốt')),
+      TextField(controller: title, maxLength: 160, decoration:  InputDecoration(labelText: tr('Tên món đồ'), hintText: tr('Ví dụ: Ghế ăn gỗ còn tốt'))),
       const SizedBox(height: 12),
-      TextField(controller: description, maxLength: 3000, minLines: 3, maxLines: 5, decoration: const InputDecoration(labelText: 'Mô tả tình trạng', hintText: 'Tuổi sử dụng, lỗi, phụ kiện đi kèm…')),
+      TextField(controller: description, maxLength: 3000, minLines: 3, maxLines: 5, decoration:  InputDecoration(labelText: tr('Mô tả tình trạng'), hintText: tr('Tuổi sử dụng, lỗi, phụ kiện đi kèm…'))),
       const SizedBox(height: 12),
-      TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Giá mong muốn (không bắt buộc)', suffixText: 'đ')),
+      TextField(controller: price, keyboardType: TextInputType.number, decoration:  InputDecoration(labelText: tr('Giá mong muốn (không bắt buộc)'), suffixText: tr('đ'))),
       const SizedBox(height: 12),
-      DropdownButtonFormField<String>(value: warehouse, decoration: const InputDecoration(labelText: 'Điểm tiếp nhận dự kiến'), items: const [DropdownMenuItem(value: 'Tòa Vinacomin, Hà Nội', child: Text('Tòa Vinacomin, Hà Nội')), DropdownMenuItem(value: '530 Nguyễn Trãi, Bắc Ninh', child: Text('530 Nguyễn Trãi, Bắc Ninh'))], onChanged: (v) { if (v != null) setState(() => warehouse = v); }),
+      DropdownButtonFormField<String>(value: warehouse, decoration:  InputDecoration(labelText: tr('Điểm tiếp nhận dự kiến')), items: const [DropdownMenuItem(value: 'Tòa Vinacomin, Hà Nội', child: PassyText('Tòa Vinacomin, Hà Nội')), DropdownMenuItem(value: '530 Nguyễn Trãi, Bắc Ninh', child: PassyText('530 Nguyễn Trãi, Bắc Ninh'))], onChanged: (v) { if (v != null) setState(() => warehouse = v); }),
       const SizedBox(height: 12),
-      TextField(controller: contact, maxLength: 160, decoration: const InputDecoration(
-        labelText: 'Số điện thoại hoặc email liên hệ',
-        helperText: 'Chỉ bạn và quản trị Passy xem được.',
+      TextField(controller: contact, maxLength: 160, decoration:  InputDecoration(
+        labelText: tr('Số điện thoại hoặc email liên hệ'),
+        helperText: tr('Chỉ bạn và quản trị Passy xem được.'),
       )),
       const SizedBox(height: 12),
-      const Text('Chưa phát sinh bàn giao khi gửi biểu mẫu. Phí hoa hồng, giá bán và cách nhận lại đồ sẽ được xác nhận trước khi Passy nhận món đồ.', style: TextStyle(color: muted, height: 1.5)),
+      const PassyText('Chưa phát sinh bàn giao khi gửi biểu mẫu. Phí hoa hồng, giá bán và cách nhận lại đồ sẽ được xác nhận trước khi Passy nhận món đồ.', style: TextStyle(color: muted, height: 1.5)),
       const SizedBox(height: 20),
-      FilledButton.icon(onPressed: busy ? null : submit, icon: const Icon(Icons.send_outlined), label: Text(busy ? 'Đang gửi…' : 'Gửi yêu cầu ký gửi')),
+      FilledButton.icon(onPressed: busy ? null : submit, icon: const Icon(Icons.send_outlined), label: PassyText(busy ? 'Đang gửi…' : 'Gửi yêu cầu ký gửi')),
       if (staff || requests.isNotEmpty) ...[
         const SizedBox(height: 30),
         SectionTitle(staff ? 'Yêu cầu ký gửi cần xử lý' : 'Yêu cầu của tôi'),
-        if (requests.isEmpty) const Text('Chưa có yêu cầu.'),
+        if (requests.isEmpty) const PassyText('Chưa có yêu cầu.'),
         ...requests.map((r) => Card(child: ListTile(
-          title: Text('${r['title']} · ${statuses[r['status']] ?? r['status']}'),
-          subtitle: Text('${r['warehouse']}\nGiá mong muốn: ${r['asking_price'] == null ? 'Chưa nhập' : money(r['asking_price'])}'),
+          title: Text('${r['title']} · ${tr(statuses[r['status']] ?? '${r['status']}')}'),
+          subtitle: PassyText('${r['warehouse']}\nGiá mong muốn: ${r['asking_price'] == null ? 'Chưa nhập' : money(r['asking_price'])}'),
           isThreeLine: true,
           onTap: staff ? () => _editRequest(r) : () => showDialog<void>(
             context: context,
@@ -144,7 +144,7 @@ class _ConsignmentPageState extends State<ConsignmentPage> {
                 if (r['commission_amount'] != null) 'Hoa hồng: ${r['commission_amount']} đ',
                 if (r['staff_note'] != null) r['staff_note'],
               ].join('\n')),
-              actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Đóng'))],
+              actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const PassyText('Đóng'))],
             ),
           ),
           trailing: Icon(staff ? Icons.edit_outlined : Icons.chevron_right),

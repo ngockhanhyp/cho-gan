@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -364,7 +365,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                 const Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: 20),
-                    child: Text(
+                    child: PassyText(
                       'Chọn khu vực',
                       style: TextStyle(
                         fontSize: 22,
@@ -374,7 +375,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Đóng chọn khu vực',
+                  tooltip: tr('Đóng chọn khu vực'),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -386,7 +387,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                 onChanged: (value) => setState(() => query = value),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
-                  hintText: 'Tìm phường, xã…',
+                  hintText: tr('Tìm phường, xã…'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -398,7 +399,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 children: [
                   const SizedBox(height: 8),
-                  const Text(
+                  const PassyText(
                     'Chọn phường hoặc xã ở Hà Nội để tìm tin gần khu vực đó.',
                     style: TextStyle(fontSize: 15),
                   ),
@@ -412,12 +413,12 @@ class _LocationPickerState extends State<_LocationPicker> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.my_location_rounded, size: 20),
-                    label: Text(
+                    label: PassyText(
                       locating ? 'Đang lấy vị trí…' : 'Dùng vị trí hiện tại',
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(
+                  PassyText(
                     'Chỉ lấy vị trí khi bạn bấm nút. Tọa độ dùng để gợi ý khu vực, không lưu lên Passy và không công khai.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -434,7 +435,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                           color: theme.colorScheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
+                        child: PassyText(
                           message!,
                           style: const TextStyle(height: 1.5),
                         ),
@@ -446,11 +447,11 @@ class _LocationPickerState extends State<_LocationPicker> {
                       onPressed: () async {
                         await Geolocator.openAppSettings();
                       },
-                      child: const Text('Mở cài đặt quyền vị trí'),
+                      child: const PassyText('Mở cài đặt quyền vị trí'),
                     ),
                   if (suggestions.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    const Text(
+                    const PassyText(
                       'Gợi ý gần vị trí của bạn',
                       style: TextStyle(
                         fontSize: 16,
@@ -458,7 +459,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    PassyText(
                       'Theo mốc khu vực tham khảo, không phải xác minh địa chỉ.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -470,23 +471,23 @@ class _LocationPickerState extends State<_LocationPicker> {
                   ],
                   const SizedBox(height: 24),
                   const SizedBox(height: 16),
-                  const Text(
+                  const PassyText(
                     'Phường',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
-                  if (wards.isEmpty) const Text('Không tìm thấy phường.'),
+                  if (wards.isEmpty) const PassyText('Không tìm thấy phường.'),
                   for (final area in wards) _areaTile(area),
                   const SizedBox(height: 16),
-                  const Text(
+                  const PassyText(
                     'Xã',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
-                  if (communes.isEmpty) const Text('Không tìm thấy xã.'),
+                  if (communes.isEmpty) const PassyText('Không tìm thấy xã.'),
                   for (final area in communes) _areaTile(area),
                   const SizedBox(height: 16),
-                  const Text(
+                  const PassyText(
                     'Khu vực cũ và phạm vi tìm kiếm',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
@@ -495,7 +496,7 @@ class _LocationPickerState extends State<_LocationPicker> {
                         area.toLowerCase().contains(normalizedQuery))
                       _areaTile(area),
                   const SizedBox(height: 12),
-                  Text(
+                  PassyText(
                     'Tên khu vực dùng để tìm tin đăng, không xác nhận nơi cư trú.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -516,7 +517,7 @@ class _LocationPickerState extends State<_LocationPicker> {
     leading: Icon(
       suggested ? Icons.near_me_outlined : Icons.location_on_outlined,
     ),
-    title: Text(area),
+    title: PassyText(area),
     trailing: area == widget.currentArea
         ? Icon(
             Icons.check_rounded,

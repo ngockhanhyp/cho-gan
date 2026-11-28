@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  const t = text => window.PassyLanguage?.t(text) || text;
   const seenKey = 'passy.story.seen.v1';
   const markSeen = () => { try { localStorage.setItem(seenKey, '1'); } catch (_) {} };
 
@@ -16,7 +17,7 @@
       tab.tabIndex = i === teamChapter ? 0 : -1;
       teamPanels[i].hidden = i !== teamChapter;
     });
-    nextChapter.innerHTML = teamChapter === teamTabs.length - 1 ? 'Về chặng đầu <span aria-hidden="true">↺</span>' : 'Chặng tiếp theo <span aria-hidden="true">＋</span>';
+    nextChapter.innerHTML = teamChapter === teamTabs.length - 1 ? t('Về chặng đầu') + ' <span aria-hidden="true">↺</span>' : t('Chặng tiếp theo') + ' <span aria-hidden="true">＋</span>';
     if (focus) teamTabs[teamChapter].focus();
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches && teamPanels[teamChapter].animate) {
       teamPanels[teamChapter].animate([{opacity:0,transform:'translateY(14px)'},{opacity:1,transform:'translateY(0)'}], {duration:480,easing:'cubic-bezier(.22,1,.36,1)'});
@@ -45,23 +46,23 @@
     });
   });
   document.getElementById('share').addEventListener('click', async () => {
-    const url = 'https://passy.id.vn/story.html';
+    const url = 'https://passy.id.vn/story.html?lang=' + (window.PassyLanguage?.code || 'vi');
     const status = document.getElementById('share-status');
     status.textContent = '';
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Passy — Món đồ cũ. Một khởi đầu mới.', text: 'Người cần món đồ ấy có thể ở ngay gần bạn. Cùng mình khám phá Passy nhé!', url });
+        await navigator.share({ title: t('Passy — Món đồ cũ. Một khởi đầu mới.'), text: t('Người cần món đồ ấy có thể ở ngay gần bạn. Cùng mình khám phá Passy nhé!'), url });
         return;
       }
       if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(url);
-      status.textContent = 'Đã sao chép đường dẫn. Gửi cho một người bạn nhé!';
+      status.textContent = t('Đã sao chép đường dẫn. Gửi cho một người bạn nhé!');
     } catch (error) {
       if (error.name === 'AbortError') return;
       document.getElementById('copy-fallback').hidden = false;
       const input = document.getElementById('share-url');
       input.value = url; input.focus(); input.select();
-      status.textContent = 'Bạn có thể sao chép đường dẫn bên dưới.';
+      status.textContent = t('Bạn có thể sao chép đường dẫn bên dưới.');
     }
   });
 })();

@@ -66,7 +66,7 @@
   }
   function setMotion(value){enabled=value;if(ctx){ctx.revert();ctx=null;}cleanup.splice(0).forEach(fn=>fn());lenis?.destroy();lenis=null;
     document.body.classList.toggle('v2-static',!value);document.body.classList.toggle('v2-active',value&&desktop.matches);
-    const toggle=document.getElementById('v2-motion-toggle');toggle.setAttribute('aria-pressed',String(!value));toggle.textContent=value?'Giảm chuyển động':'Bật chuyển động';
+    const toggle=document.getElementById('v2-motion-toggle');toggle.setAttribute('aria-pressed',String(!value));toggle.textContent=window.PassyLanguage?.t(value?'Giảm chuyển động':'Bật chuyển động') || (value?'Giảm chuyển động':'Bật chuyển động');
     chapters.forEach(chapter=>chapter.removeAttribute('aria-hidden'));if(value)motion();
   }
   gsap.ticker.add(time=>lenis?.raf(time*1000));

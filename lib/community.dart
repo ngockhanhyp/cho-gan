@@ -51,19 +51,19 @@ class _CommunityRepliesState extends State<CommunityReplies> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Thảo luận'), actions: [
-      IconButton(onPressed: load, icon: const Icon(Icons.refresh), tooltip: 'Tải lại'),
+    appBar: AppBar(title: const PassyText('Thảo luận'), actions: [
+      IconButton(onPressed: load, icon: const Icon(Icons.refresh), tooltip: tr('Tải lại')),
     ]),
     body: PageBody(maxWidth: 720, children: [
       Card(child: ListTile(title: Text(widget.post['body'] ?? ''))),
       const SizedBox(height: 16),
       const SectionTitle('Bình luận'),
-      if (error != null) Text(error!),
+      if (error != null) PassyText(error!),
       for (final reply in replies)
-        ListTile(title: Text(reply['profiles']?['name'] ?? 'Cư dân'), subtitle: Text(reply['body'] ?? '')),
+        ListTile(title: Text(reply['profiles']?['name'] ?? tr('Cư dân')), subtitle: Text(reply['body'] ?? '')),
       TextField(controller: input, maxLength: 1000, maxLines: 3,
-        decoration: const InputDecoration(labelText: 'Viết bình luận')),
-      FilledButton.icon(onPressed: busy ? null : send, icon: const Icon(Icons.send_outlined), label: const Text('Gửi bình luận')),
+        decoration:  InputDecoration(labelText: tr('Viết bình luận'))),
+      FilledButton.icon(onPressed: busy ? null : send, icon: const Icon(Icons.send_outlined), label: const PassyText('Gửi bình luận')),
     ]),
   );
 }
@@ -144,20 +144,18 @@ class _CommunitiesPage extends State<CommunitiesPage> {
     final text = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(create ? 'Tạo cộng đồng' : 'Tham gia bằng mã mời'),
+        title: PassyText(create ? 'Tạo cộng đồng' : 'Tham gia bằng mã mời'),
         content: TextField(
           controller: input,
           maxLength: create ? 80 : 32,
           decoration: InputDecoration(
-            hintText: create
-                ? 'Đồng nghiệp, cư dân, nhóm bạn…'
-                : 'Dán mã do thành viên chia sẻ',
+            hintText: tr(create ? 'Đồng nghiệp, cư dân, nhóm bạn…' : 'Dán mã do thành viên chia sẻ'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text('Hủy'),
+            child: const PassyText('Hủy'),
           ),
           FilledButton(
             onPressed: () {
@@ -165,7 +163,7 @@ class _CommunitiesPage extends State<CommunitiesPage> {
                 Navigator.pop(c, input.text.trim());
               }
             },
-            child: const Text('Tiếp tục'),
+            child: const PassyText('Tiếp tục'),
           ),
         ],
       ),
@@ -194,16 +192,16 @@ class _CommunitiesPage extends State<CommunitiesPage> {
     final building = TextEditingController();
     final location = TextEditingController();
     final values = await showDialog<(String, String)>(context: context, builder: (c) => AlertDialog(
-      title: const Text('Tạo cộng đồng chung cư'),
+      title: const PassyText('Tạo cộng đồng chung cư'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: building, maxLength: 80, decoration: const InputDecoration(labelText: 'Tên tòa nhà / khu chung cư')),
-        TextField(controller: location, maxLength: 160, decoration: const InputDecoration(labelText: 'Phường, quận hoặc địa chỉ')),
+        TextField(controller: building, maxLength: 80, decoration:  InputDecoration(labelText: tr('Tên tòa nhà / khu chung cư'))),
+        TextField(controller: location, maxLength: 160, decoration:  InputDecoration(labelText: tr('Phường, quận hoặc địa chỉ'))),
         const SizedBox(height: 8),
-        const Text('Cộng đồng dùng mã mời riêng. Passy chưa xác minh người tham gia có cư trú tại đây.', style: TextStyle(color: muted)),
+        const PassyText('Cộng đồng dùng mã mời riêng. Passy chưa xác minh người tham gia có cư trú tại đây.', style: TextStyle(color: muted)),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Hủy')), FilledButton(onPressed: () {
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const PassyText('Hủy')), FilledButton(onPressed: () {
         if (building.text.trim().length >= 3 && location.text.trim().length >= 3) Navigator.pop(c, (building.text.trim(), location.text.trim()));
-      }, child: const Text('Tạo nhóm'))],
+      }, child: const PassyText('Tạo nhóm'))],
     ));
     building.dispose(); location.dispose();
     if (values == null) return;
@@ -228,22 +226,22 @@ class _CommunitiesPage extends State<CommunitiesPage> {
           FilledButton.icon(
             onPressed: busy ? null : () => edit(false),
             icon: const Icon(Icons.group_add_outlined),
-            label: const Text('Nhập mã mời'),
+            label: const PassyText('Nhập mã mời'),
           ),
           OutlinedButton(
             onPressed: busy ? null : () => edit(true),
-            child: const Text('Tạo cộng đồng'),
+            child: const PassyText('Tạo cộng đồng'),
           ),
           OutlinedButton.icon(
             onPressed: busy ? null : createApartment,
             icon: const Icon(Icons.apartment_outlined),
-            label: const Text('Tạo nhóm chung cư'),
+            label: const PassyText('Tạo nhóm chung cư'),
           ),
         ],
       ),
       const SizedBox(height: 24),
       if (loading) const Center(child: CircularProgressIndicator()),
-      if (error != null) Text(error!),
+      if (error != null) PassyText(error!),
       if (groups.isEmpty && !loading)
         const EmptyState(
           icon: Icons.groups_outlined,
@@ -276,7 +274,7 @@ class _CommunitiesPage extends State<CommunitiesPage> {
             title: Text(g['name']),
             subtitle: Text(g['community_type'] == 'apartment'
                 ? '${g['building_location'] ?? ''} · Nhóm riêng bằng mã mời, chưa xác minh cư trú'
-                : 'Nhóm có mã mời · không xác minh cư trú'),
+                : tr('Nhóm có mã mời · không xác minh cư trú')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
               await Navigator.push(
@@ -382,8 +380,8 @@ class _CommunityBoard extends State<CommunityBoard> {
                 side: const BorderSide(color: line),
               ),
               leading: const Icon(Icons.vpn_key_outlined, color: brand),
-              title: const Text('Mời người bạn quen'),
-              subtitle: const Text(
+              title: const PassyText('Mời người bạn quen'),
+              subtitle: const PassyText(
                 'Ai có mã đều có thể tham gia. Chia sẻ có chọn lọc.',
               ),
               children: [
@@ -399,15 +397,15 @@ class _CommunityBoard extends State<CommunityBoard> {
                     if (c.mounted) notice(c, 'Đã sao chép mã mời.');
                   },
                   icon: const Icon(Icons.copy),
-                  label: const Text('Sao chép mã'),
+                  label: const PassyText('Sao chép mã'),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             DropdownButtonFormField<String>(
               initialValue: topic,
-              decoration: const InputDecoration(labelText: 'Chủ đề bài viết'),
-              items: topics.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(),
+              decoration:  InputDecoration(labelText: tr('Chủ đề bài viết')),
+              items: topics.entries.map((entry) => DropdownMenuItem(value: entry.key, child: PassyText(entry.value))).toList(),
               onChanged: busy ? null : (value) => setState(() => topic = value ?? 'discussion'),
             ),
             const SizedBox(height: 12),
@@ -415,8 +413,8 @@ class _CommunityBoard extends State<CommunityBoard> {
               controller: input,
               maxLines: 4,
               maxLength: 2000,
-              decoration: const InputDecoration(
-                hintText: 'Hỏi hàng xóm, chia sẻ tin hữu ích…',
+              decoration:  InputDecoration(
+                hintText: tr('Hỏi hàng xóm, chia sẻ tin hữu ích…'),
               ),
             ),
             Align(
@@ -424,15 +422,15 @@ class _CommunityBoard extends State<CommunityBoard> {
               child: FilledButton(
                 style: FilledButton.styleFrom(minimumSize: const Size(140, 48)),
                 onPressed: busy ? null : post,
-                child: Text(busy ? 'Đang đăng…' : 'Chia sẻ'),
+                child: PassyText(busy ? 'Đang đăng…' : 'Chia sẻ'),
               ),
             ),
             const SizedBox(height: 24),
-            if (error != null) Text(error!),
+            if (error != null) PassyText(error!),
             Wrap(
               spacing: 8,
               children: {'all': 'Tất cả', ...topics}.entries.map((entry) => ChoiceChip(
-                label: Text(entry.value),
+                label: PassyText(entry.value),
                 selected: filter == entry.key,
                 onSelected: (_) => setState(() => filter = entry.key),
               )).toList(),
@@ -457,7 +455,7 @@ class _CommunityBoard extends State<CommunityBoard> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              p['profiles']?['name'] ?? 'Thành viên',
+                              p['profiles']?['name'] ?? tr('Thành viên'),
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -465,7 +463,7 @@ class _CommunityBoard extends State<CommunityBoard> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(topics[p['topic']] ?? 'Hỏi đáp', style: const TextStyle(fontWeight: FontWeight.w700, color: muted)),
+                      Text(topics[p['topic']] ?? tr('Hỏi đáp'), style: const TextStyle(fontWeight: FontWeight.w700, color: muted)),
                       Text(
                         p['body'],
                         style: const TextStyle(fontSize: 16, height: 1.5),
@@ -473,7 +471,7 @@ class _CommunityBoard extends State<CommunityBoard> {
                       TextButton.icon(
                         onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => CommunityReplies(post: p))),
                         icon: const Icon(Icons.comment_outlined),
-                        label: const Text('Bình luận'),
+                        label: const PassyText('Bình luận'),
                       ),
                     ],
                   ),
