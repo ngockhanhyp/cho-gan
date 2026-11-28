@@ -81,7 +81,10 @@ class _MeetingPage extends State<MeetingPage> {
       notice(context, 'Chọn giờ trong tương lai.');
       return;
     }
-    final location = TextEditingController();
+    final listingDescription = widget.thread['listings']?['description'] as String? ?? '';
+    final location = TextEditingController(
+      text: _suggestedPickup(listingDescription),
+    );
     final place = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
@@ -110,7 +113,7 @@ class _MeetingPage extends State<MeetingPage> {
       ),
     );
     location.dispose();
-    if (place == null) return;
+    if (place == null || !mounted) return;
     setState(() => busy = true);
     try {
       await db.rpc(
@@ -243,16 +246,19 @@ class _MeetingPage extends State<MeetingPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                m['place'],
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.schedule, color: brand),
+                                title: const PassyText('Thời gian'),
+                                subtitle: Text(
+                                  '${at.day}/${at.month}/${at.year} · ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${at.day}/${at.month}/${at.year} · ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.place_outlined, color: brand),
+                                title: const PassyText('Địa điểm gặp'),
+                                subtitle: Text(m['place']),
                               ),
                               const SizedBox(height: 8),
                               PassyText(
