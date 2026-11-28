@@ -1149,6 +1149,8 @@ class _Home extends State<Home> {
             ],
           ),
         )
+      else if (!wide)
+        ...shown.map(marketRow)
       else
         LayoutBuilder(
           builder: (_, box) {
@@ -1181,6 +1183,70 @@ class _Home extends State<Home> {
     return '${t.day}/${t.month}/${t.year}';
   }
 
+  Future<void> openListing(Map<String, dynamic> listing) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => Detail(item: listing)),
+    );
+    if (mounted) await refresh();
+  }
+
+  Widget marketRow(Map<String, dynamic> listing) {
+    final saved = favorites.contains(listing['id']);
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => openListing(listing),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListingImage(path: listing['image_path'] ?? '', size: 96),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        listing['title'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [listing['area'], ago(listing['created_at'])]
+                            .where((part) => part != null && part != '')
+                            .join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: muted),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(money(listing['price']), style: const TextStyle(fontWeight: FontWeight.w900)),
+                      if (listing['status'] != 'available')
+                        StatusBadge(listing['status']),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: tr(saved ? 'Bỏ lưu món đồ' : 'Lưu món đồ'),
+                  onPressed: () => favorite(listing),
+                  icon: Icon(
+                    saved ? Icons.favorite : Icons.favorite_border,
+                    color: saved ? brand : muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
   Widget card(Map<String, dynamic> x) {
     final saved = favorites.contains(x['id']);
     final status = x['status'] == 'sold'
@@ -1190,13 +1256,7 @@ class _Home extends State<Home> {
         : null;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => Detail(item: x)),
-        );
-        refresh();
-      },
+      onTap: () => openListing(x),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
