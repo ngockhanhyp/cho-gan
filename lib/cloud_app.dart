@@ -491,7 +491,7 @@ class _Home extends State<Home> {
         f = rows.map((e) => e['listing_id'] as String).toSet();
         t = await db
             .from('conversations')
-            .select('*,listings(title,price,image_path)')
+            .select('*,listings(title,price,image_path,description)')
             .order('created_at', ascending: false);
       }
       if (mounted) {
@@ -2358,7 +2358,8 @@ class Compose extends StatefulWidget {
 class _Compose extends State<Compose> {
   final title = TextEditingController(),
       price = TextEditingController(),
-      description = TextEditingController();
+      description = TextEditingController(),
+      pickup = TextEditingController();
   final form = GlobalKey<FormState>();
   String category = 'Gia dụng';
   String condition = 'Đã qua sử dụng - tốt';
@@ -2377,6 +2378,7 @@ class _Compose extends State<Compose> {
     title.dispose();
     price.dispose();
     description.dispose();
+    pickup.dispose();
     super.dispose();
   }
 
@@ -2431,10 +2433,15 @@ class _Compose extends State<Compose> {
             photo!,
             fileOptions: FileOptions(contentType: mime),
           );
+      final meetingPoint = pickup.text.trim();
       await db.from('listings').insert({
         'owner_id': uid,
         'title': title.text.trim(),
-        'description': 'Tình trạng: $condition\n\n${description.text.trim()}',
+        'description': [
+          'Tình trạng: $condition',
+          description.text.trim(),
+          if (meetingPoint.isNotEmpty) 'Điểm hẹn gợi ý: $meetingPoint',
+        ].join('\n\n'),
         'price': transactionMode == 'Quyên góp' ? 0 : int.parse(price.text),
         'category': category,
         'area': widget.area,
@@ -2461,21 +2468,29 @@ class _Compose extends State<Compose> {
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const PassyText('Đăng món đồ')),
+    bottomNavigationBar: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 632),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: busy ? null : submit,
+                child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
     body: Form(
       key: form,
       child: PageBody(
         maxWidth: 680,
         children: [
-              const PassyText(
-                'Bán hoặc cho tặng món đồ',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              PassyText(
-                'Tin sẽ hiển thị cho hàng xóm ở ${widget.area}. Đăng tin hoàn toàn miễn phí.',
-                style: const TextStyle(color: muted),
-              ),
-              const SizedBox(height: 24),
               label('Ảnh món đồ'),
               InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -2621,39 +2636,42 @@ class _Compose extends State<Compose> {
                 maxLength: 3950,
                 decoration:  InputDecoration(
                   hintText:
-                      tr('Tình trạng, thời gian đã dùng, khuyết điểm (nếu có), giờ và nơi tiện hẹn nhận…'),
+                      tr('Thời gian đã dùng và khuyết điểm (nếu có)…'),
                 ),
                 validator: (v) => (v?.trim().length ?? 0) < 10
                     ? tr('Mô tả ít nhất 10 ký tự')
                     : null,
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on, color: brand, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: PassyText(
-                        'Khu vực: ${widget.area}. Không ghi địa chỉ nhà, số điện thoại hay số tài khoản trong tin.',
-                        style: const TextStyle(height: 1.5),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 16),
+              label('Điểm hẹn gợi ý'),
+              TextFormField(
+                controller: pickup,
+                enabled: !busy,
+                maxLength: 120,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.place_outlined),
+                  hintText: tr('Ví dụ: cổng công viên'),
+                  helperText: tr('Không bắt buộc · ưu tiên nơi công cộng'),
                 ),
               ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: PassyText(busy ? 'Đang đăng…' : 'Đăng tin miễn phí'),
+              PassyText(
+                'Khu vực đăng tin: ${widget.area}',
+                style: const TextStyle(color: muted),
               ),
-              const SizedBox(height: 24),
         ],
       ),
     ),
   );
+}
+
+
+const _pickupPrefix = '\n\nĐiểm hẹn gợi ý: ';
+
+String? _suggestedPickup(String description) {
+  final start = description.lastIndexOf(_pickupPrefix);
+  if (start < 0) return null;
+  final pickup = description.substring(start + _pickupPrefix.length).trim();
+  return pickup.isEmpty || pickup.contains('\n') ? null : pickup;
 }
 
 class Detail extends StatefulWidget {
@@ -2671,14 +2689,14 @@ class _Detail extends State<Detail> {
         context,
         MaterialPageRoute(builder: (_) => const Login()),
       );
-      if (db.auth.currentUser == null) return;
+      if (!mounted || db.auth.currentUser == null) return;
     }
     setState(() => busy = true);
     try {
       final uid = db.auth.currentUser!.id;
       var t = await db
           .from('conversations')
-          .select('*,listings(title,price,image_path)')
+          .select('*,listings(title,price,image_path,description)')
           .eq('listing_id', widget.item['id'])
           .eq('buyer_id', uid)
           .maybeSingle();
@@ -2689,7 +2707,7 @@ class _Detail extends State<Detail> {
             'buyer_id': uid,
             'seller_id': widget.item['owner_id'],
           })
-          .select('*,listings(title,price,image_path)')
+          .select('*,listings(title,price,image_path,description)')
           .single();
       if (mounted) {
         await Navigator.push(
@@ -2841,6 +2859,8 @@ class _Detail extends State<Detail> {
     final mine = db.auth.currentUser?.id == x['owner_id'];
     final wide = isWide(c);
     final seller = x['profiles']?['name'] ?? 'Thành viên';
+    final description = x['description'] as String? ?? '';
+    final pickup = _suggestedPickup(description);
     final photo = ClipRRect(
       borderRadius: BorderRadius.circular(wide ? 20 : 0),
       child: AspectRatio(
@@ -2888,8 +2908,6 @@ class _Detail extends State<Detail> {
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        sellerCard,
-        const SizedBox(height: 22),
         Row(children: [StatusBadge(x['status']), const Spacer()]),
         const SizedBox(height: 10),
         Text(
@@ -2903,18 +2921,31 @@ class _Detail extends State<Detail> {
               .join(' · '),
           style: const TextStyle(color: muted),
         ),
-        const SizedBox(height: 14),
-        Text(
-          money(x['price']),
-          style: TextStyle(fontSize: wide ? 30 : 24, fontWeight: FontWeight.w900, color: ink),
-        ),
+        if (wide || mine || x['moderated'] == true) ...[
+          const SizedBox(height: 14),
+          Text(
+            money(x['price']),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: ink),
+          ),
+        ],
+        const SizedBox(height: 16),
+        sellerCard,
         const SizedBox(height: 20),
         const Divider(),
         const SizedBox(height: 20),
         Text(
-          localizedListingDescription(x['description'] ?? ''),
+          localizedListingDescription(
+            pickup == null ? description : description.substring(0, description.lastIndexOf(_pickupPrefix)),
+          ),
           style: const TextStyle(fontSize: 16, height: 1.7, color: ink),
         ),
+        if (pickup != null)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.place_outlined, color: brand),
+            title: const PassyText('Điểm hẹn gợi ý'),
+            subtitle: Text(pickup),
+          ),
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
@@ -2990,7 +3021,6 @@ class _Detail extends State<Detail> {
                                   money(x['price']),
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                                 ),
-                                const PassyText('Giá người bán đưa ra', style: TextStyle(color: muted, fontSize: 12)),
                               ],
                             ),
                           ),
