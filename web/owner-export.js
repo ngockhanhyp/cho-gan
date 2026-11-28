@@ -101,12 +101,13 @@
     });
     if (!file) return '';
     if (file.size > 5 * 1024 * 1024) throw new Error('Workbook exceeds 5 MB');
-    return readWorkbookRows(await file.arrayBuffer());
+    return readWorkbookRows(await file.arrayBuffer(), /[.]csv$/i.test(file.name));
   };
 
-  async function readWorkbookRows(bytes) {
+  async function readWorkbookRows(bytes, csv = false) {
     await loadExcel();
-    const book = XLSX.read(bytes, {sheetRows: 52, sheets: 0, raw: true});
+    const book = XLSX.read(csv ? new TextDecoder('utf-8', {fatal: true}).decode(bytes) : bytes,
+      {type: csv ? 'string' : 'array', sheetRows: 52, sheets: 0, raw: true});
     const sheet = book.Sheets[book.SheetNames[0]];
     if (!sheet?.['!ref']) return '[]';
     const bounds = XLSX.utils.decode_range(sheet['!ref']);
@@ -148,7 +149,7 @@
     }
     const csv = await response.blob();
     if (csv.size > 5 * 1024 * 1024) throw new Error('CSV exceeds 5 MB');
-    return readWorkbookRows(await csv.arrayBuffer());
+    return readWorkbookRows(await csv.arrayBuffer(), true);
   };
 
   window.passyReadOwnerSheet = async (clientId, url) => {

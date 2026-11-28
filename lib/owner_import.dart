@@ -31,10 +31,23 @@ class _ImportListing {
   final int line;
   final Map<String, String> fields;
   final paths = <String>[];
+  List<XFile> localImages = [];
+  int get photoCount => localImages.isEmpty ? imageLinks.length : localImages.length;
 
   _ImportListing(this.line, this.fields);
 
-  int? get price => int.tryParse(fields['price'] ?? '');
+  int? get price {
+    final amount = fields['price']!.replaceFirst(RegExp(r'\s*(đ|₫|vnd|vnđ)$', caseSensitive: false), '').trim();
+    if (RegExp(r'^\d+$').hasMatch(amount)) return int.tryParse(amount);
+    for (final separator in ['.', ',', ' ']) {
+      final groups = amount.replaceAll('\u00a0', ' ').split(separator);
+      if (groups.length > 1 && RegExp(r'^\d{1,3}$').hasMatch(groups.first) &&
+          groups.skip(1).every(RegExp(r'^\d{3}$').hasMatch)) {
+        return int.tryParse(groups.join());
+      }
+    }
+    return null;
+  }
 
   List<Uri?> get imageLinks => fields['image_url']!
       .split(RegExp(r'[|\n]')).map((value) => value.trim()).where((value) => value.isNotEmpty)
@@ -53,8 +66,8 @@ class _ImportListing {
       if (amount == null || amount < 0 || amount > 100000000000) 'giá nguyên bằng đồng',
       if (!categoryIcons.containsKey(category) || category == 'Tất cả') 'danh mục hợp lệ',
       if (areaLength < 1 || areaLength > 100) 'khu vực 1–100 ký tự',
-      if (links.isEmpty || links.length > 10 || links.any((uri) =>
-          uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty))
+      if (localImages.isEmpty && (links.isEmpty || links.length > 10 || links.any((uri) =>
+          uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty)))
         '1–10 link ảnh HTTPS',
     ];
   }
@@ -178,7 +191,10 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
 
   Future<void> _editDraft(_ImportListing row) async {
     final values = Map<String, String>.of(row.fields);
-    final edited = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+    var localImages = row.localImages;
+    var picking = false;
+    final edited = await showDialog<bool>(context: context, builder: (dialog) =>
+      StatefulBuilder(builder: (context, redraw) => AlertDialog(
       title: Text('Sửa tin · Dòng ${row.line}'),
       content: SizedBox(width: 560, child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -192,19 +208,38 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
               keyboardType: field == 'price' ? TextInputType.number : TextInputType.text,
               onChanged: (value) => values[field] = value.trim(),
             )),
+          OutlinedButton.icon(
+            onPressed: picking ? null : () async {
+              redraw(() => picking = true);
+              try {
+                final files = await ImagePicker().pickMultiImage(limit: 10, maxWidth: 1600, imageQuality: 85);
+                if (context.mounted && files.isNotEmpty) redraw(() => localImages = files.take(10).toList());
+              } catch (_) {
+                if (context.mounted) notice(context, 'Không chọn được tệp ảnh.');
+              } finally {
+                if (context.mounted) redraw(() => picking = false);
+              }
+            },
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text('Chọn ảnh từ thiết bị'),
+          ),
+          if (localImages.isNotEmpty)
+            TextButton(onPressed: picking ? null : () => redraw(() => localImages = []),
+              child: Text('Đã chọn ${localImages.length} ảnh. Dùng lại link ảnh')),
+
         ]),
       )),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Hủy')),
-        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Lưu bản nháp')),
+        FilledButton(onPressed: picking ? null : () => Navigator.pop(dialog, true), child: const Text('Lưu bản nháp')),
       ],
-    ));
+    )));
     if (!mounted || edited != true) return;
-    if (values['image_url'] != row.fields['image_url']) {
+    if (values['image_url'] != row.fields['image_url'] || !identical(localImages, row.localImages)) {
       _discardUploads([row]);
       row.paths.clear();
     }
-    setState(() => row.fields.addAll(values));
+    setState(() { row.fields.addAll(values); row.localImages = localImages; });
   }
 
   Widget _columnMapping(int width) => Column(
@@ -281,7 +316,7 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
               if (row.price != null) money(row.price),
               if (row.fields['category']!.isNotEmpty) row.fields['category'],
               if (row.fields['area']!.isNotEmpty) row.fields['area'],
-              '${row.imageLinks.length} ảnh',
+              '${row.photoCount} ảnh',
             ].join(' · ')),
             if (row.fields['description']!.isNotEmpty)
               Text(row.fields['description']!, maxLines: 4, overflow: TextOverflow.ellipsis),
@@ -338,6 +373,15 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
   }
 
   Future<Uint8List> _download(Uri uri) async {
+    if (uri.host == 'drive.google.com') {
+      final id = RegExp(r'^/file/d/([a-zA-Z0-9_-]+)(?:/|$)').firstMatch(uri.path)?.group(1)
+          ?? uri.queryParameters['id'];
+      if (id != null && RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) {
+        uri = Uri.https('lh3.googleusercontent.com', '/d/$id', {
+          if (uri.queryParameters['resourcekey'] case final key?) 'resourcekey': key,
+        });
+      }
+    }
     final client = http.Client();
     const limit = 5 * 1024 * 1024;
     try {
@@ -372,12 +416,13 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
     try {
       if (await db.rpc('is_passy_owner') != true) throw const FormatException('Tài khoản thiếu quyền chủ Passy.');
       for (final row in rows) {
-        final images = row.imageLinks.cast<Uri>();
-        for (var index = row.paths.length; index < images.length; index++) {
+        for (var index = row.paths.length; index < row.photoCount; index++) {
           if (!mounted || db.auth.currentUser?.id != ownerId) return;
-          setState(() => progress = 'Dòng ${row.line} · Đang tải ảnh ${index + 1}/${images.length}');
+          setState(() => progress = 'Dòng ${row.line} · Đang tải ảnh ${index + 1}/${row.photoCount}');
           try {
-            final bytes = await _download(images[index]);
+            final bytes = row.localImages.isEmpty ? await _download(row.imageLinks[index]!)
+                : await row.localImages[index].readAsBytes();
+            if (bytes.length > 5 * 1024 * 1024) throw const FormatException('Ảnh vượt 5 MB.');
             final mime = _listingImageMime(bytes);
             if (mime == null) throw const FormatException('Ảnh phải là JPG, PNG hoặc WebP.');
             final ext = {'image/png': 'png', 'image/webp': 'webp'}[mime] ?? 'jpg';
@@ -387,7 +432,7 @@ class _OwnerImportPageState extends State<OwnerImportPage> {
               fileOptions: FileOptions(contentType: mime));
             row.paths.add(path);
           } catch (_) {
-            throw FormatException('Dòng ${row.line}, ảnh ${index + 1} · Dùng link tải trực tiếp JPG, PNG hoặc WebP tối đa 5 MB, cho phép Passy đọc ảnh.');
+            throw FormatException('Dòng ${row.line}, ảnh ${index + 1} · Passy không đọc được ảnh. Hãy mở quyền xem ảnh Drive hoặc chọn ảnh từ thiết bị trong bản xem trước. Nhận JPG, PNG hoặc WebP tối đa 5 MB.');
           }
         }
       }
