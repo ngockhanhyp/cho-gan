@@ -3,3 +3,8 @@ void downloadOwnerCsv(String filename, String content) =>
 
 Future<String> createOwnerSheet(String clientId, String title, String rows) =>
     Future.error(UnsupportedError('Google Sheets khả dụng trên web.'));
+
+Future<String> readOwnerWorkbook() => Future.error(UnsupportedError('Chỉ hỗ trợ trên web.'));
+
+Future<String> readOwnerSheet(String clientId, String url) =>
+    Future.error(UnsupportedError('Chỉ hỗ trợ trên web.'));

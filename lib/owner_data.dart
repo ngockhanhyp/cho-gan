@@ -254,7 +254,14 @@ class _OwnerDataPageState extends State<OwnerDataPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Quản trị dữ liệu')),
+    appBar: AppBar(title: const Text('Quản trị dữ liệu'), actions: [
+      if (kIsWeb && ownerId != null) IconButton(
+        tooltip: 'Đăng tin hàng loạt',
+        icon: const Icon(Icons.playlist_add),
+        onPressed: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const OwnerImportPage())),
+      ),
+    ]),
     body: ownerId == null
       ? const Center(child: Text('Hãy đăng nhập lại bằng tài khoản chủ.'))
       : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1000),

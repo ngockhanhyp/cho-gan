@@ -202,7 +202,11 @@ class _OwnerConsoleState extends State<OwnerConsole> {
                 ],
               ) : section == 'Tin nhắn' ? IconButton(tooltip:'Xóa tin nhắn',icon:const Icon(Icons.delete_outline),
                 onPressed:()=>manage(row,'delete_message')) : section == 'Hội thoại' ? const Icon(Icons.chevron_right) : null,
-              onTap: section == 'Hội thoại' ? () => perform(row['row_id'], 'Đọc hội thoại') : null),
+              onTap: section == 'Hội thoại' ? () => perform(row['row_id'], 'Đọc hội thoại')
+                : section == 'Tin đăng' ? () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => ListingLink(id: row['row_id'])));
+                  if (mounted) refresh();
+                } : null),
             if (entries.isEmpty) const ListTile(title: Text('Chưa có dữ liệu phù hợp')),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               IconButton(onPressed: page == 0 ? null : () { page--; refresh(); }, icon: const Icon(Icons.chevron_left)),

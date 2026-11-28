@@ -1,6 +1,9 @@
 import 'i18n.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show Random;
+import 'dart:typed_data' show BytesBuilder;
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_svg/flutter_svg.dart';
@@ -23,6 +26,7 @@ import 'owner_export_stub.dart' if (dart.library.js_interop) 'owner_export_web.d
 part 'trust.dart';
 part 'owner_console.dart';
 part 'owner_data.dart';
+part 'owner_import.dart';
 part 'community.dart';
 part 'listing_edit.dart';
 part 'market_map.dart';
@@ -2476,13 +2480,7 @@ class _Compose extends State<Compose> {
       var skipped = false;
       for (final file in files.take(photoLimit - photos.length)) {
         final bytes = await file.readAsBytes();
-        final mime = switch (bytes) {
-          [0xff, 0xd8, 0xff, ...] => 'image/jpeg',
-          [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...] => 'image/png',
-          [0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50, ...] =>
-            'image/webp',
-          _ => null,
-        };
+        final mime = _listingImageMime(bytes);
         if (mime == null || bytes.length > 5 * 1024 * 1024) {
           skipped = true;
           continue;
@@ -2819,11 +2817,64 @@ class _Detail extends State<Detail> {
   int photoIndex = 0;
   bool saved = false;
   bool savingFavorite = false;
+  String? verifiedOwner;
+  late final StreamSubscription<AuthState> detailAuth;
+
+  Future<void> _checkOwnerAccess() async {
+    final uid = db.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final allowed = await db.rpc('is_passy_owner') == true;
+      if (mounted && db.auth.currentUser?.id == uid) {
+        setState(() => verifiedOwner = allowed ? uid : null);
+      }
+    } catch (_) {
+      // The regular listing view remains available when the role check fails.
+    }
+  }
+
+  Future<void> _editAsOwner() async {
+    try {
+      final row = await db.rpc('owner_listing', params: {'target': widget.item['id']});
+      if (!mounted) return;
+      if (row == null) {
+        notice(context, 'Tin này không còn tồn tại.');
+        return;
+      }
+      final values = await Navigator.push<Map<String, Object>>(context,
+        MaterialPageRoute(builder: (_) => EditListing(
+          item: Map<String, dynamic>.from(row), asOwner: true)));
+      if (mounted && values != null) setState(() => widget.item.addAll(values));
+    } catch (error) {
+      if (mounted) notice(context, friendly(error));
+    }
+  }
+
 
   @override
   void initState() {
     super.initState();
     _loadFavorite();
+    _checkOwnerAccess();
+    var currentUser = db.auth.currentUser?.id;
+    detailAuth = db.auth.onAuthStateChange.listen((_) {
+      final nextUser = db.auth.currentUser?.id;
+      if (mounted && currentUser != nextUser) {
+        currentUser = nextUser;
+        setState(() => verifiedOwner = null);
+        if (widget.item['_version'] != null) {
+          Navigator.maybePop(context);
+        } else {
+          _checkOwnerAccess();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    detailAuth.cancel();
+    super.dispose();
   }
 
   Future<void> _loadFavorite() async {
@@ -3230,6 +3281,9 @@ class _Detail extends State<Detail> {
       appBar: AppBar(
         title: const PassyText('Chi tiết món đồ'),
         actions: [
+          if (verifiedOwner != null && verifiedOwner == db.auth.currentUser?.id)
+            IconButton(tooltip: 'Sửa tin với quyền chủ Passy', onPressed: _editAsOwner,
+              icon: const Icon(Icons.admin_panel_settings_outlined)),
           IconButton(tooltip: tr('Sao chép liên kết'), onPressed: share, icon: const Icon(Icons.ios_share)),
           if (wide && !mine && x['moderated'] != true) _favoriteButton(),
           if (!mine)

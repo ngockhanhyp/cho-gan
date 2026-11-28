@@ -2,13 +2,17 @@ part of 'cloud_app.dart';
 
 class EditListing extends StatefulWidget {
   final Map<String, dynamic> item;
-  const EditListing({super.key, required this.item});
+  final bool asOwner;
+  const EditListing({super.key, required this.item, this.asOwner = false});
   @override
   State<EditListing> createState() => _EditListing();
 }
 
 class _EditListing extends State<EditListing> {
   late final TextEditingController title, description, price;
+  late String category, area, status;
+  late bool acceptsOffers;
+  String reason = '';
   final form = GlobalKey<FormState>();
   bool busy = false;
   @override
@@ -17,6 +21,10 @@ class _EditListing extends State<EditListing> {
     title = TextEditingController(text: widget.item['title']);
     description = TextEditingController(text: widget.item['description']);
     price = TextEditingController(text: '${widget.item['price']}');
+    category = widget.item['category'] as String;
+    area = widget.item['area'] as String;
+    status = widget.item['status'] as String;
+    acceptsOffers = widget.item['accepts_offers'] == true;
   }
 
   @override
@@ -36,9 +44,19 @@ class _EditListing extends State<EditListing> {
         'description': description.text.trim(),
         'price': int.parse(price.text),
       };
-      await db.from('listings').update(values).eq('id', widget.item['id']);
+      if (widget.asOwner) {
+        values.addAll({'category': category.trim(), 'area': area.trim(),
+          'status': status, 'accepts_offers': acceptsOffers});
+        await db.rpc('owner_data', params: {
+          'resource': 'listings', 'operation': 'update',
+          'record_key': {'id': widget.item['id']}, 'changes': values,
+          'version': widget.item['_version'], 'reason': reason,
+        });
+      } else {
+        await db.from('listings').update(values).eq('id', widget.item['id']);
+      }
       widget.item.addAll(values);
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, values);
     } catch (e) {
       if (mounted) notice(context, friendly(e));
     } finally {
@@ -93,6 +111,31 @@ class _EditListing extends State<EditListing> {
                     ? tr('Mô tả ít nhất 10 ký tự')
                     : null,
               ),
+              if (widget.asOwner) ...[
+                TextFormField(initialValue: category, maxLength: 80,
+                  decoration: const InputDecoration(labelText: 'Danh mục'),
+                  onChanged: (value) => category = value,
+                  validator: (value) => value!.trim().isEmpty ? 'Nhập danh mục' : null),
+                TextFormField(initialValue: area, maxLength: 100,
+                  decoration: const InputDecoration(labelText: 'Khu vực'),
+                  onChanged: (value) => area = value,
+                  validator: (value) => value!.trim().isEmpty ? 'Nhập khu vực' : null),
+                DropdownButtonFormField<String>(initialValue: status,
+                  decoration: const InputDecoration(labelText: 'Trạng thái'),
+                  items: const [
+                    DropdownMenuItem(value: 'available', child: Text('Đang bán')),
+                    DropdownMenuItem(value: 'reserved', child: Text('Đang hẹn')),
+                    DropdownMenuItem(value: 'sold', child: Text('Đã bán')),
+                    DropdownMenuItem(value: 'hidden', child: Text('Ẩn tin')),
+                  ],
+                  onChanged: (value) => status = value!),
+                SwitchListTile(title: const Text('Cho phép trả giá'), value: acceptsOffers,
+                  onChanged: (value) => setState(() => acceptsOffers = value)),
+                TextFormField(maxLength: 300,
+                  decoration: const InputDecoration(labelText: 'Lý do quản trị'),
+                  onChanged: (value) => reason = value.trim(),
+                  validator: (value) => reason.length < 5 ? 'Nhập ít nhất 5 ký tự' : null),
+              ],
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: busy ? null : save,
@@ -116,11 +159,16 @@ class _ListingLink extends State<ListingLink> {
   @override
   void initState() {
     super.initState();
-    listing = db
-        .from('listings')
-        .select('*,profiles!owner_id(name)')
-        .eq('id', widget.id)
-        .maybeSingle();
+    listing = _load();
+  }
+
+  Future<Map<String, dynamic>?> _load() async {
+    final visible = await db.from('listings')
+        .select('*,profiles!owner_id(name)').eq('id', widget.id).maybeSingle();
+    if (visible != null || db.auth.currentUser == null) return visible;
+    if (await db.rpc('is_passy_owner') != true) return null;
+    final row = await db.rpc('owner_listing', params: {'target': widget.id});
+    return row == null ? null : Map<String, dynamic>.from(row);
   }
 
   @override

@@ -19,3 +19,14 @@ void downloadOwnerCsv(String filename, String content) {
   link.remove();
   Future<void>.delayed(const Duration(seconds: 5), () => web.URL.revokeObjectURL(url));
 }
+
+@JS('passyReadOwnerWorkbook')
+external JSPromise<JSString> _readWorkbook();
+
+@JS('passyReadOwnerSheet')
+external JSPromise<JSString> _readSheet(JSString clientId, JSString url);
+
+Future<String> readOwnerWorkbook() async => (await _readWorkbook().toDart).toDart;
+
+Future<String> readOwnerSheet(String clientId, String url) async =>
+    (await _readSheet(clientId.toJS, url.toJS).toDart).toDart;
